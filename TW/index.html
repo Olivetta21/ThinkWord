@@ -52,6 +52,10 @@
             margin: 5px 0;
             padding: 5px;
         }
+        .rc-room:hover {
+            background-color: #f0f0f0;
+            cursor: pointer;
+        }
         .rc-room>div{
             display: flex;
             flex-direction: row;
@@ -101,7 +105,7 @@
                 case "rc": // Room chat message
                     addToRoomChat(msg.m, msg.f);
                     break;
-                case "rl": // Room list with players
+                case "rl": // Room list
                     showRoomListInChat(msg.r);
                     break;
 
@@ -142,9 +146,12 @@
                 const room = document.createElement("div");
                 room.classList.add("rc-room");
 
+                room.addEventListener("click", () => {
+                    ws.send(fMsgToSend("command", roomCode, "join"));
+                });
+
                 const rcode = document.createElement("p");
                 rcode.textContent = roomCode;
-                rcode.setAttribute("room-code", roomCode);
 
                 room.appendChild(rcode);
 
@@ -185,12 +192,12 @@
             ws.send(fMsgToSend("gamemsg", msg, "t"));
         };
 
-        // Envia o comando ping
+        // pingpong
         pingButton.onclick = () => {
             ws.send(fMsgToSend("command", "ping"));
         };
 
-        // Envia o comando setname
+        // Definir o nome do usuário
         setNameButton.onclick = () => {
             const name = prompt("Enter your name:");
             if (name) {
@@ -198,12 +205,12 @@
             }
         };
 
-        // Envia o comando list rooms
+        // Listar as salas
         roomsButton.onclick = () => {
             ws.send(fMsgToSend("command", "rooms"));
         };
 
-        // Envia o comando create room
+        // Criar uma sala
         createRoomButton.onclick = () => {
             const roomName = prompt("Enter room name:");
             if (roomName) {
@@ -211,7 +218,7 @@
             }
         };
 
-        // Envia o comando join room
+        // Entrar em uma sala
         joinRoomButton.onclick = () => {
             const roomName = prompt("Enter room name:");
             if (roomName) {
@@ -219,7 +226,7 @@
             }
         };
 
-        // Envia o comando leave room
+        // Sair da sala
         leaveRoomButton.onclick = () => {
             ws.send(fMsgToSend("command", "leave"));
         };
