@@ -8,11 +8,23 @@
     <div id="chat"></div>
     <input id="message" type="text" placeholder="Type a message..." />
     <button id="send">Send</button>
+    <button id="ping">Ping</button>
+    <button id="setname">Set Name</button>
+    <button id="rooms">List Rooms</button>
+    <button id="createroom">Create Room</button>
+    <button id="joinroom">Join Room</button>
+    <button id="leaveroom">Leave Room</button>
 
     <script>
         const chat = document.getElementById("chat");
         const messageInput = document.getElementById("message");
         const sendButton = document.getElementById("send");
+        const pingButton = document.getElementById("ping");
+        const setNameButton = document.getElementById("setname");
+        const roomsButton = document.getElementById("rooms");
+        const createRoomButton = document.getElementById("createroom");
+        const joinRoomButton = document.getElementById("joinroom");
+        const leaveRoomButton = document.getElementById("leaveroom");
 
         let ws = null;        
         function wsOnOpen() {
@@ -20,7 +32,7 @@
         }
         function wsOnClose() {
             console.log("WS disconnected");
-            setTimeout(setupWS, 1000);
+            setTimeout(setupWS, 3000);
         }
         function wsOnMesssage(event) {
             const msg = document.createElement("div");
@@ -34,11 +46,68 @@
             ws.onmessage = wsOnMesssage;
         }
 
+        function fMsgToSend(type, msg, arg) {
+            switch (type) {
+                case "command":
+                    if (arg) msg = `${msg}:${arg}`;
+                    return JSON.stringify({ c: msg });
+                case "gametyping":
+                    return JSON.stringify({ gt: msg });
+                case "gamemessage":
+                    return JSON.stringify({ gm: msg });
+            }
+        }
+
         setupWS();
+
+        // Envia o que o usuario estiver digitando em tempo real
+        messageInput.oninput = () => {
+            const msg = messageInput.value;
+            ws.send(fMsgToSend("gametyping", msg));
+        };
+
+        // Envia o comando ping
+        pingButton.onclick = () => {
+            ws.send(fMsgToSend("command", "ping"));
+        };
+
+        // Envia o comando setname
+        setNameButton.onclick = () => {
+            const name = prompt("Enter your name:");
+            if (name) {
+                ws.send(fMsgToSend("command", "me", name));
+            }
+        };
+
+        // Envia o comando list rooms
+        roomsButton.onclick = () => {
+            ws.send(fMsgToSend("command", "rooms"));
+        };
+
+        // Envia o comando create room
+        createRoomButton.onclick = () => {
+            const roomName = prompt("Enter room name:");
+            if (roomName) {
+                ws.send(fMsgToSend("command", "create", roomName));
+            }
+        };
+
+        // Envia o comando join room
+        joinRoomButton.onclick = () => {
+            const roomName = prompt("Enter room name:");
+            if (roomName) {
+                ws.send(fMsgToSend("command", "join", roomName));
+            }
+        };
+
+        // Envia o comando leave room
+        leaveRoomButton.onclick = () => {
+            ws.send(fMsgToSend("command", "leave"));
+        };
 
         sendButton.onclick = () => {
             const msg = messageInput.value;
-            ws.send(msg);
+            ws.send(fMsgToSend("gamemessage", msg));
             messageInput.value = "";
         };
     </script>
