@@ -30,10 +30,11 @@ class FMsg:
             "m": msg
         })
     
-    def playerWord(msg):
+    def playerWord(msg, result):
         return json.dumps({
             "t": "pw",
-            "m": msg
+            "m": msg,
+            "r": result
         })
 
 class Player:
@@ -101,12 +102,11 @@ class Room:
                             await self.echo(FMsg.playerTyping(msg), pid)
                         elif type == "m": # Player message
                             # Logica de acerto mock
-                            await self.echo(FMsg.playerWord(msg))
                             if msg.startswith("a"):
-                                await self.echo(FMsg.rc(f"{players[pid_].name} acertou!"))
+                                await self.echo(FMsg.playerWord(msg, 1))
                                 break
                             else:
-                                await self.echo(FMsg.rc(f"{players[pid_].name} errou!"))
+                                await self.echo(FMsg.playerWord(msg, 0))
                 except asyncio.TimeoutError:
                     continue
             

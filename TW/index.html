@@ -34,16 +34,24 @@
             max-width: 90%;
         }
         #chat>div>.me {
-            background-color: rgb(139, 255, 158);
-            color: rgb(0, 77, 13);
+            background-color: rgb(168, 255, 183);
+            color: rgb(0, 59, 10);
         }
         #chat>div>.srv {
-            background-color: rgb(201, 201, 201);
-            color: rgb(31, 31, 31);
+            background-color: rgb(231, 231, 231);
+            color: rgb(66, 66, 66);
+        }        
+        #chat>div>.pww {
+            background-color: rgb(19, 255, 70);
+            color: rgb(0, 43, 4);
+        }      
+        #chat>div>.pwl {
+            background-color: rgb(255, 149, 9);
+            color: rgb(66, 0, 0);
         }
         #chat>div>.other {
-            background-color: rgb(124, 218, 255);
-            color: rgb(0, 58, 82);
+            background-color: rgb(173, 232, 255);
+            color: rgb(0, 39, 56);
         }
         .rc-room {
             display: flex;
@@ -123,7 +131,7 @@
                     updatePlayerTyping(msg.m);
                     break;
                 case "pw": // Player word message
-                    addToRoomChat(msg.m, null);
+                    showResultInChat(msg.m, msg.r);
                     break;
 
             }
@@ -141,12 +149,38 @@
             msgElement.textContent = from + ': ' + msg;
 
             const div = document.createElement("div");
-            if (from === "srv") {
-                div.classList.add("center");
-                msgElement.classList.add("srv");
-            } else {
-                msgElement.classList.add("other");
+
+            switch (from) {
+                case "srv":
+                    div.classList.add("center");
+                    msgElement.classList.add("srv");
+                    break;
+                default:
+                    msgElement.classList.add("other");
             }
+
+            div.appendChild(msgElement);
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        };
+
+        function showResultInChat(msg, result) {            
+            const msgElement = document.createElement("p");
+            msgElement.textContent = msg;
+
+            const div = document.createElement("div");
+            div.classList.add("center");
+
+            console.log("Result: ", result);
+            switch (result) {
+                case 1: // Player win 
+                    msgElement.classList.add("pww");
+                    break;
+                case 0: // Player lose
+                    msgElement.classList.add("pwl");
+                    break;
+            }
+
             div.appendChild(msgElement);
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
