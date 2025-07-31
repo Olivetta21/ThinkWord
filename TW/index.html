@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ThinkWord</title>
+</head>
+<body>
+    <h1>ThinkWord</h1>
+    <div id="chat"></div>
+    <input id="message" type="text" placeholder="Type a message..." />
+    <button id="send">Send</button>
+
+    <script>
+        const chat = document.getElementById("chat");
+        const messageInput = document.getElementById("message");
+        const sendButton = document.getElementById("send");
+
+        let ws = null;        
+        function wsOnOpen() {
+            console.log("WS connected");
+        }
+        function wsOnClose() {
+            console.log("WS disconnected");
+            setTimeout(setupWS, 1000);
+        }
+        function wsOnMesssage(event) {
+            const msg = document.createElement("div");
+            msg.textContent = event.data;
+            chat.appendChild(msg);
+        }
+        function setupWS() {
+            ws = new WebSocket("ws://localhost:8765");
+            ws.onopen = wsOnOpen;
+            ws.onclose = wsOnClose;
+            ws.onmessage = wsOnMesssage;
+        }
+
+        setupWS();
+
+        sendButton.onclick = () => {
+            const msg = messageInput.value;
+            ws.send(msg);
+            messageInput.value = "";
+        };
+    </script>
+</body>
+</html>
