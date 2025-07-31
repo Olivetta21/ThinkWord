@@ -3,6 +3,7 @@ import websockets
 import random
 import json
 
+
 class FMsg:
     def rc(msg, pname=None):
         return json.dumps({
@@ -12,11 +13,28 @@ class FMsg:
         })
     
     def rooms():
-        rooms_list = {
+        return json.dumps({
             "t": "rl",
             "r": {sala.code: [players[pid].name for pid in sala.players] for sala in rooms.values()}
-        }
-        return json.dumps(rooms_list)
+        })
+
+    def gameState(state_id):
+        return json.dumps({
+            "t": "gs",
+            "s": state_id
+        })
+    
+    def playerTyping(msg):
+        return json.dumps({
+            "t": "pt",
+            "m": msg
+        })
+    
+    def playerWord(msg):
+        return json.dumps({
+            "t": "pw",
+            "m": msg
+        })
 
 class Player:
     serial = 0
@@ -57,6 +75,43 @@ class Room:
         self.players.discard(pid)
         asyncio.create_task(self.echo(FMsg.rc(f"{players[pid].name} left the room")))
         return len(self.players) == 0
+    
+    async def startGame(self):
+        partida = 10
+        while partida > 0:
+            partida -= 1
+            await self.echo(FMsg.playerTyping(""))
+            await self.echo(FMsg.gameState(1)) # Loading
+            await asyncio.sleep(2)
+            await self.echo(FMsg.gameState(2)) # Selecting player
+            await asyncio.sleep(2)
+            pid = random.choice(list(self.players))
+            p = players[pid]
+            await self.echo(FMsg.rc(f"{p.name} is the chosen player for this round"))
+            await asyncio.sleep(5)
+            await self.echo(FMsg.gameState(3), pid) # Jogadores não escolhidos
+            await p.ws.send(FMsg.gameState(4)) # Jogador escolhido        
+            
+            inicio = asyncio.get_event_loop().time()
+            while asyncio.get_event_loop().time() - inicio < 10:
+                try:
+                    pid_, type, msg = await asyncio.wait_for(self.msgs.get(), timeout=0.1)
+                    if pid_ == pid:
+                        if type == "t": # Player typing
+                            await self.echo(FMsg.playerTyping(msg), pid)
+                        elif type == "m": # Player message
+                            # Logica de acerto mock
+                            await self.echo(FMsg.playerWord(msg))
+                            if msg.startswith("a"):
+                                await self.echo(FMsg.rc(f"{players[pid_].name} acertou!"))
+                                break
+                            else:
+                                await self.echo(FMsg.rc(f"{players[pid_].name} errou!"))
+                except asyncio.TimeoutError:
+                    continue
+            
+        await self.echo(FMsg.gameState(0))
+
 
 def remPlayerFromRoom(pid, rid = None):        
     rooms_to_delete = []
@@ -131,7 +186,7 @@ async def hp_messages(pid):
                     remPlayerFromRoom(pid)
                     p.room = None
                 await p.ws.send(FMsg.rc("Left room"))
-        if "r" in m:  # Room
+        elif "r" in m:  # Room
             r = m["r"]
             if r.startswith("c:"):
                 if p.room is None:
@@ -142,6 +197,29 @@ async def hp_messages(pid):
                     continue
                 msg = r[2:]
                 await rooms[p.room].echo(FMsg.rc(msg, p.name), pid)
+        elif "g" in m:  # Game
+            g = m["g"]
+            if g.startswith("start"):
+                if p.room is None:
+                    await p.ws.send(FMsg.rc("You are not in a room"))
+                    continue
+                if p.room not in rooms:
+                    await p.ws.send(FMsg.rc("Room not found"))
+                    continue
+                if len(rooms[p.room].players) < 2:
+                    await p.ws.send(FMsg.rc("Not enough players to start the game"))
+                    continue
+                asyncio.create_task(rooms[p.room].startGame())
+            elif g.startswith("t:"):
+                if p.room is None:
+                    await p.ws.send(FMsg.rc("You are not in a room"))
+                    continue
+                await rooms[p.room].msgs.put((pid, "t", g[2:]))
+            elif g.startswith("m:"):
+                if p.room is None:
+                    await p.ws.send(FMsg.rc("You are not in a room"))
+                    continue
+                await rooms[p.room].msgs.put((pid, "m", g[2:]))
 
 async def handler(ws):
     pid = Player.nextSerial()
@@ -156,7 +234,7 @@ async def handler(ws):
         print(f"Player {pid} disconnected")
 
 async def main():
-    server = await websockets.serve(handler, "localhost", 8765)
+    server = await websockets.serve(handler, "0.0.0.0", 8765)
     print("Server started")
     await server.wait_closed()
 

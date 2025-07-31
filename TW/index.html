@@ -70,8 +70,11 @@
 <body>
     <h1>ThinkWord</h1>
     <div id="chat"></div>
+    <p id="game-state"></p>
     <input id="message" type="text" placeholder="Type a message..." />
+    <p id="player-typing"></p>
     <button id="send">Send</button>
+    <button id="start">Start Game</button>
     <button id="ping">Ping</button>
     <button id="setname">Set Name</button>
     <button id="rooms">List Rooms</button>
@@ -81,14 +84,19 @@
 
     <script>
         const chat = document.getElementById("chat");
+        const gameState = document.getElementById("game-state");
         const messageInput = document.getElementById("message");
+        const playerTyping = document.getElementById("player-typing");
         const sendButton = document.getElementById("send");
+        const startButton = document.getElementById("start");
         const pingButton = document.getElementById("ping");
         const setNameButton = document.getElementById("setname");
         const roomsButton = document.getElementById("rooms");
         const createRoomButton = document.getElementById("createroom");
         const joinRoomButton = document.getElementById("joinroom");
         const leaveRoomButton = document.getElementById("leaveroom");
+
+        let gameState_value = 0;
 
         let ws = null;        
         function wsOnOpen() {
@@ -108,11 +116,20 @@
                 case "rl": // Room list
                     showRoomListInChat(msg.r);
                     break;
+                case "gs": // Game state update
+                    updateGameState(msg.s);
+                    break;
+                case "pt": // Game text message
+                    updatePlayerTyping(msg.m);
+                    break;
+                case "pw": // Player word message
+                    addToRoomChat(msg.m, null);
+                    break;
 
             }
         }
         function setupWS() {
-            ws = new WebSocket("ws://localhost:8765");
+            ws = new WebSocket("ws://10.8.0.18:8765");
             ws.onopen = wsOnOpen;
             ws.onclose = wsOnClose;
             ws.onmessage = wsOnMesssage;
@@ -172,6 +189,19 @@
             chat.scrollTop = chat.scrollHeight;
         }
 
+        function updatePlayerTyping(typing) {
+            if (typing.length > 0) {
+                playerTyping.textContent = typing;
+            } else {
+                playerTyping.textContent = "...";
+            }
+        }
+
+        function updateGameState(state) {
+            gameState.textContent = "Game State: " + state;
+            gameState_value = state;
+        }
+
         function fMsgToSend(type, msg, comm) {
             if (comm) msg = `${comm}:${msg}`;
             switch (type) {
@@ -190,6 +220,11 @@
         messageInput.oninput = () => {
             const msg = messageInput.value;
             ws.send(fMsgToSend("gamemsg", msg, "t"));
+        };
+
+        // Iniciar o jogo
+        startButton.onclick = () => {
+            ws.send(fMsgToSend("gamemsg", "start"));
         };
 
         // pingpong
@@ -233,16 +268,20 @@
 
         sendButton.onclick = () => {
             const msg = messageInput.value;
-            ws.send(fMsgToSend("roomchat", msg, "c"));
 
-            const msgElement = document.createElement("p");
-            msgElement.textContent = msg;
-            msgElement.classList.add("me");
+            if (gameState_value == 4) {
+                ws.send(fMsgToSend("gamemsg", msg, "m"));
+            } else {
+                ws.send(fMsgToSend("roomchat", msg, "c"));            
+                const msgElement = document.createElement("p");
+                msgElement.textContent = msg;
+                msgElement.classList.add("me");
 
-            const div = document.createElement("div");
-            div.classList.add("right");
-            div.appendChild(msgElement);
-            chat.appendChild(div);
+                const div = document.createElement("div");
+                div.classList.add("right");
+                div.appendChild(msgElement);
+                chat.appendChild(div);
+            }
             chat.scrollTop = chat.scrollHeight;
 
             messageInput.value = "";
