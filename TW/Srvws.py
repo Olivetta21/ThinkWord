@@ -3,6 +3,21 @@ import websockets
 import random
 import json
 
+class FMsg:
+    def rc(msg, pname=None):
+        return json.dumps({
+            "t": "rc",
+            "f": pname if pname else "srv",
+            "m": msg
+        })
+    
+    def rooms():
+        rooms_list = {
+            "t": "rl",
+            "r": {sala.code: [players[pid].name for pid in sala.players] for sala in rooms.values()}
+        }
+        return json.dumps(rooms_list)
+
 class Player:
     serial = 0
     def nextSerial():
@@ -34,11 +49,13 @@ class Room:
     def addPlayer(self, pid):
         self.players.add(pid)
         players[pid].room = self.rid
+        asyncio.create_task(self.echo(FMsg.rc(f"{players[pid].name} joined the room")))
 
     def removePlayer(self, pid):
         if pid in self.players:
             players[pid].room = None
         self.players.discard(pid)
+        asyncio.create_task(self.echo(FMsg.rc(f"{players[pid].name} left the room")))
         return len(self.players) == 0
 
 def remPlayerFromRoom(pid, rid = None):        
@@ -69,36 +86,30 @@ async def hp_messages(pid):
         if "c" in m: # Commands
             c = m["c"]
             if c == "ping":
-                await p.ws.send("pong")
+                await p.ws.send(FMsg.rc("pong"))
             elif c.startswith("me:"):
                 p.name = c[3:]
-                await p.ws.send(f"Olá {p.name}")
+                await p.ws.send(FMsg.rc(f"Olá {p.name}"))
             elif c == "rooms":
-                room_list = ""
-                for rid, room in rooms.items():
-                    players_list = ""
-                    for uid in room.players:
-                        players_list += f"{players[uid].name}, "
-                    room_list += f"({rid}: {players_list})"
-                await p.ws.send(room_list)
+                await p.ws.send(FMsg.rooms())
             elif c.startswith("create:"):
                 if p.name is None:
-                    await p.ws.send("You must set your name first")
+                    await p.ws.send(FMsg.rc("You must set your name first"))
                     continue
                 if p.room is not None:
-                    await p.ws.send("You are already in a room")
+                    await p.ws.send(FMsg.rc("You are already in a room"))
                     continue
                 room_code = c[7:]
                 rid = Room.nextSerial()
                 rooms[rid] = Room(room_code, rid)
                 rooms[rid].addPlayer(pid)
-                await p.ws.send(f"Room({rid}) {room_code} created")
+                await p.ws.send(FMsg.rc(f"Room({rid}) {room_code} created"))
             elif c.startswith("join:"):
                 if p.name is None:
-                    await p.ws.send("You must set your name first")
+                    await p.ws.send(FMsg.rc("You must set your name first"))
                     continue
                 if p.room is not None:
-                    await p.ws.send("You are already in a room")
+                    await p.ws.send(FMsg.rc("You are already in a room"))
                     continue
                 room_code = c[5:]
                 found = False
@@ -106,31 +117,31 @@ async def hp_messages(pid):
                     if room.code == room_code:
                         room.addPlayer(pid)
                         found = True
-                        await p.ws.send(f"Joined room({rid}) {room_code}")
                         break
                 if not found:
-                    await p.ws.send(f"Room {room_code} not found")
+                    await p.ws.send(FMsg.rc(f"Room {room_code} not found"))
             elif c.startswith("leave"):
                 if p.room is None:
-                    await p.ws.send("You are not in a room")
+                    await p.ws.send(FMsg.rc("You are not in a room"))
                     continue
                 if p.room in rooms:
-                    remPlayerFromRoom(pid, p.room)
+                    rid = p.room
+                    remPlayerFromRoom(pid, rid)
                 else:
                     remPlayerFromRoom(pid)
                     p.room = None
-                await p.ws.send(f"Left room")
+                await p.ws.send(FMsg.rc("Left room"))
         if "r" in m:  # Room
             r = m["r"]
             if r.startswith("c:"):
                 if p.room is None:
-                    await p.ws.send("You are not in a room")
+                    await p.ws.send(FMsg.rc("You are not in a room"))
                     continue
                 if p.room not in rooms:
-                    await p.ws.send("Room not found")
+                    await p.ws.send(FMsg.rc("Room not found"))
                     continue
                 msg = r[2:]
-                await rooms[p.room].echo(f"{p.name}: {msg}", pid)
+                await rooms[p.room].echo(FMsg.rc(msg, p.name), pid)
 
 async def handler(ws):
     pid = Player.nextSerial()

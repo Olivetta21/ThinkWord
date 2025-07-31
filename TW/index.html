@@ -2,6 +2,66 @@
 <html>
 <head>
     <title>ThinkWord</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        #chat {
+            width: 100%;
+            height: 300px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        #chat>div {
+            padding: 3px;
+            display: flex;
+        }
+        #chat>div.right {
+            justify-content: flex-end;
+        }
+        #chat>div.center {
+            justify-content: center;
+        }
+
+        #chat>div>p {
+            padding: 4px;
+            border-radius: 3px;
+            word-break: break-word;
+            max-width: 90%;
+        }
+        #chat>div>.me {
+            background-color: rgb(139, 255, 158);
+            color: rgb(0, 77, 13);
+        }
+        #chat>div>.srv {
+            background-color: rgb(201, 201, 201);
+            color: rgb(31, 31, 31);
+        }
+        #chat>div>.other {
+            background-color: rgb(124, 218, 255);
+            color: rgb(0, 58, 82);
+        }
+        .rc-room {
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ccc;
+            margin: 5px 0;
+            padding: 5px;
+        }
+        .rc-room>div{
+            display: flex;
+            flex-direction: row;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .rc-room>div>p {
+            border-bottom: 1px solid black;
+        }
+    </style>
 </head>
 <body>
     <h1>ThinkWord</h1>
@@ -35,15 +95,74 @@
             setTimeout(setupWS, 3000);
         }
         function wsOnMesssage(event) {
-            const msg = document.createElement("div");
-            msg.textContent = event.data;
-            chat.appendChild(msg);
+            msg = JSON.parse(event.data);
+
+            switch (msg.t) {
+                case "rc": // Room chat message
+                    addToRoomChat(msg.m, msg.f);
+                    break;
+                case "rl": // Room list with players
+                    showRoomListInChat(msg.r);
+                    break;
+
+            }
         }
         function setupWS() {
             ws = new WebSocket("ws://localhost:8765");
             ws.onopen = wsOnOpen;
             ws.onclose = wsOnClose;
             ws.onmessage = wsOnMesssage;
+        }
+
+
+        function addToRoomChat(msg, from) {
+            const msgElement = document.createElement("p");
+            msgElement.textContent = from + ': ' + msg;
+
+            const div = document.createElement("div");
+            if (from === "srv") {
+                div.classList.add("center");
+                msgElement.classList.add("srv");
+            } else {
+                msgElement.classList.add("other");
+            }
+            div.appendChild(msgElement);
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function showRoomListInChat(rooms) {
+            const line = document.createElement("div");
+            line.classList.add("center");
+            
+            const holder = document.createElement("div");
+            holder.classList.add("holder-room");
+
+            for (const [roomCode, players] of Object.entries(rooms)) {
+                const room = document.createElement("div");
+                room.classList.add("rc-room");
+
+                const rcode = document.createElement("p");
+                rcode.textContent = roomCode;
+                rcode.setAttribute("room-code", roomCode);
+
+                room.appendChild(rcode);
+
+                const div = document.createElement("div");
+
+                for (const player of players) {
+                    const p = document.createElement("p");
+                    p.textContent = player;
+
+                    div.appendChild(p);
+                }
+
+                room.appendChild(div);
+                holder.appendChild(room);
+            }
+            line.appendChild(holder);
+            chat.appendChild(line);
+            chat.scrollTop = chat.scrollHeight;
         }
 
         function fMsgToSend(type, msg, comm) {
@@ -108,6 +227,17 @@
         sendButton.onclick = () => {
             const msg = messageInput.value;
             ws.send(fMsgToSend("roomchat", msg, "c"));
+
+            const msgElement = document.createElement("p");
+            msgElement.textContent = msg;
+            msgElement.classList.add("me");
+
+            const div = document.createElement("div");
+            div.classList.add("right");
+            div.appendChild(msgElement);
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+
             messageInput.value = "";
         };
     </script>
