@@ -46,15 +46,15 @@
             ws.onmessage = wsOnMesssage;
         }
 
-        function fMsgToSend(type, msg, arg) {
+        function fMsgToSend(type, msg, comm) {
+            if (comm) msg = `${comm}:${msg}`;
             switch (type) {
                 case "command":
-                    if (arg) msg = `${msg}:${arg}`;
                     return JSON.stringify({ c: msg });
-                case "gametyping":
-                    return JSON.stringify({ gt: msg });
-                case "gamemessage":
-                    return JSON.stringify({ gm: msg });
+                case "roomchat":
+                    return JSON.stringify({ r: msg });
+                case "gamemsg":
+                    return JSON.stringify({ g: msg });
             }
         }
 
@@ -63,7 +63,7 @@
         // Envia o que o usuario estiver digitando em tempo real
         messageInput.oninput = () => {
             const msg = messageInput.value;
-            ws.send(fMsgToSend("gametyping", msg));
+            ws.send(fMsgToSend("gamemsg", msg, "t"));
         };
 
         // Envia o comando ping
@@ -75,7 +75,7 @@
         setNameButton.onclick = () => {
             const name = prompt("Enter your name:");
             if (name) {
-                ws.send(fMsgToSend("command", "me", name));
+                ws.send(fMsgToSend("command", name, "me"));
             }
         };
 
@@ -88,7 +88,7 @@
         createRoomButton.onclick = () => {
             const roomName = prompt("Enter room name:");
             if (roomName) {
-                ws.send(fMsgToSend("command", "create", roomName));
+                ws.send(fMsgToSend("command", roomName, "create"));
             }
         };
 
@@ -96,7 +96,7 @@
         joinRoomButton.onclick = () => {
             const roomName = prompt("Enter room name:");
             if (roomName) {
-                ws.send(fMsgToSend("command", "join", roomName));
+                ws.send(fMsgToSend("command", roomName, "join"));
             }
         };
 
@@ -107,7 +107,7 @@
 
         sendButton.onclick = () => {
             const msg = messageInput.value;
-            ws.send(fMsgToSend("gamemessage", msg));
+            ws.send(fMsgToSend("roomchat", msg, "c"));
             messageInput.value = "";
         };
     </script>

@@ -25,7 +25,12 @@ class Room:
         self.players = set()
         self.code = code
         self.rid = rid
-    
+
+    async def echo(self, msg, sender_pid=None):
+        for pid in self.players:
+            if pid != sender_pid:
+                await players[pid].ws.send(msg)
+
     def addPlayer(self, pid):
         self.players.add(pid)
         players[pid].room = self.rid
@@ -115,6 +120,17 @@ async def hp_messages(pid):
                     remPlayerFromRoom(pid)
                     p.room = None
                 await p.ws.send(f"Left room")
+        if "r" in m:  # Room
+            r = m["r"]
+            if r.startswith("c:"):
+                if p.room is None:
+                    await p.ws.send("You are not in a room")
+                    continue
+                if p.room not in rooms:
+                    await p.ws.send("Room not found")
+                    continue
+                msg = r[2:]
+                await rooms[p.room].echo(f"{p.name}: {msg}", pid)
 
 async def handler(ws):
     pid = Player.nextSerial()
