@@ -3,8 +3,31 @@ import websockets
 import random
 import json
 
+ERRORTABLE = {
+    "RNF": "Room not found",
+    "PNF": "Player not found",
+    "NPN": "No player name",
+    "NIR": "Not in room",
+    "NEP": "Not enough players",
+    "PAR": "Player already in room",
+}
 
 class FMsg:
+    def errtable():
+        return json.dumps({
+            "t": "errtable",
+            "e": ERRORTABLE
+        })
+
+    def error(err):
+        if err not in ERRORTABLE:
+            err = "UNK"
+
+        return json.dumps({
+            "t": "err",
+            "e": err
+        })
+
     def rc(msg, pid=-1):
         return json.dumps({
             "t": "rc",
@@ -139,7 +162,6 @@ class Room:
             player_played[pid] += 1
 
             await asyncio.sleep(5)
-            await self.echo(FMsg.rc(f"{p.name} is the chosen player for this round"))
             await self.setGameState(3, pid)
 
             while not self.msgs.empty():
@@ -205,10 +227,10 @@ async def hp_messages(pid):
                 await p.ws.send(FMsg.rooms())
             elif c.startswith("create:"):
                 if p.name is None:
-                    await p.ws.send(FMsg.rc("You must set your name first"))
+                    await p.ws.send(FMsg.error("NPN"))
                     continue
                 if p.room is not None:
-                    await p.ws.send(FMsg.rc("You are already in a room"))
+                    await p.ws.send(FMsg.error("PAR"))
                     continue
                 room_code = c[7:]
                 rid = Room.nextSerial()
@@ -217,23 +239,37 @@ async def hp_messages(pid):
                 await p.ws.send(FMsg.rc(f"Room({rid}) {room_code} created"))
             elif c.startswith("join:"):
                 if p.name is None:
-                    await p.ws.send(FMsg.rc("You must set your name first"))
+                    await p.ws.send(FMsg.error("NPN"))
                     continue
                 if p.room is not None:
-                    await p.ws.send(FMsg.rc("You are already in a room"))
+                    await p.ws.send(FMsg.error("PAR"))
                     continue
                 room_code = c[5:]
                 found = False
                 for rid, room in rooms.items():
                     if room.code == room_code:
                         room.addPlayer(pid)
+                        await p.ws.send(FMsg.rc("Entrou na sala"))
                         found = True
                         break
                 if not found:
-                    await p.ws.send(FMsg.rc(f"Room {room_code} not found"))
-            elif c.startswith("leave"):
+                    await p.ws.send(FMsg.error("RNF"))
+            elif c.startswith("errtable"):
+                await p.ws.send(FMsg.errtable())
+        elif "r" in m:  # Room
+            r = m["r"]
+            if r.startswith("c:"):
                 if p.room is None:
-                    await p.ws.send(FMsg.rc("You are not in a room"))
+                    await p.ws.send(FMsg.error("NIR"))
+                    continue
+                if p.room not in rooms:
+                    await p.ws.send(FMsg.error("RNF"))
+                    continue
+                msg = r[2:]
+                await rooms[p.room].echo(FMsg.rc(msg, pid), pid)
+            elif r.startswith("leave"):
+                if p.room is None:
+                    await p.ws.send(FMsg.error("NIR"))
                     continue
                 if p.room in rooms:
                     rid = p.room
@@ -242,46 +278,35 @@ async def hp_messages(pid):
                     remPlayerFromRoom(pid)
                     p.room = None
                 await p.ws.send(FMsg.rc("Left room"))
-        elif "r" in m:  # Room
-            r = m["r"]
-            if r.startswith("c:"):
-                if p.room is None:
-                    await p.ws.send(FMsg.rc("You are not in a room"))
-                    continue
-                if p.room not in rooms:
-                    await p.ws.send(FMsg.rc("Room not found"))
-                    continue
-                msg = r[2:]
-                await rooms[p.room].echo(FMsg.rc(msg, pid), pid)
         elif "g" in m:  # Game
             g = m["g"]
             if g.startswith("start"):
                 if p.room is None:
-                    await p.ws.send(FMsg.rc("You are not in a room"))
+                    await p.ws.send(FMsg.error("NIR"))
                     continue
                 if p.room not in rooms:
-                    await p.ws.send(FMsg.rc("Room not found"))
+                    await p.ws.send(FMsg.error("RNF"))
                     continue
                 if len(rooms[p.room].players) < 2:
-                    await p.ws.send(FMsg.rc("Not enough players to start the game"))
+                    await p.ws.send(FMsg.error("NEP"))
                     continue
                 asyncio.create_task(rooms[p.room].startGame())
             elif g.startswith("t:"):
                 if p.room is None:
-                    await p.ws.send(FMsg.rc("You are not in a room"))
+                    await p.ws.send(FMsg.error("NIR"))
                     continue
                 await rooms[p.room].msgs.put((pid, "t", g[2:]))
             elif g.startswith("m:"):
                 if p.room is None:
-                    await p.ws.send(FMsg.rc("You are not in a room"))
+                    await p.ws.send(FMsg.error("NIR"))
                     continue
                 await rooms[p.room].msgs.put((pid, "m", g[2:]))
             elif g.startswith("gs"):
                 if p.room is None:
-                    await p.ws.send(FMsg.rc("You are not in a room"))
+                    await p.ws.send(FMsg.error("NIR"))
                     continue
                 if p.room not in rooms:
-                    await p.ws.send(FMsg.rc("Room not found"))
+                    await p.ws.send(FMsg.error("RNF"))
                     continue
                 await p.ws.send(FMsg.gameState(rooms[p.room].gameState))
 

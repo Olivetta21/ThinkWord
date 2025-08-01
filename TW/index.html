@@ -125,6 +125,12 @@
             msg = JSON.parse(event.data);
             console.log("WS message received:", msg);
             switch (msg.t) {
+                case "errtable": // Error table
+                    ERRORTABLE = msg.e;
+                    break;
+                case "err": // Error message
+                    handleError(msg.e)
+                    break;
                 case "rc": // Room chat message
                     addToRoomChat(msg.m, msg.f);
                     break;
@@ -170,6 +176,17 @@
             ws.onmessage = wsOnMesssage;
         }
 
+        ERRORTABLE = {}
+        async function handleError(err) {
+            if (Object.keys(ERRORTABLE).length === 0) {
+                await ws.send(fMsgToSend("command", "errtable"));
+                await setTimeout(() => {
+                    handleError(err);
+                }, 1000);
+                return;
+            }
+            addToRoomChat(`Error: ${ERRORTABLE[err] || "Unknown error"}`, -1);
+        }
 
         function addToRoomChat(msg, from) {
             const msgElement = document.createElement("p");
@@ -364,7 +381,7 @@
 
         // Sair da sala
         leaveRoomButton.onclick = () => {
-            ws.send(fMsgToSend("command", "leave"));
+            ws.send(fMsgToSend("roomchat", "leave"));
             roomPlayers.textContent = "Players: ";
             room_players = {};
             playerTyping.textContent = "...";
