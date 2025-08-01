@@ -81,6 +81,8 @@
     <p id="game-state"></p>
     <input id="message" type="text" placeholder="Type a message..." />
     <p id="player-typing"></p>
+    <p id="identity"></p>
+    <p id="room-players"></p>
     <button id="send">Send</button>
     <button id="start">Start Game</button>
     <button id="ping">Ping</button>
@@ -103,8 +105,12 @@
         const createRoomButton = document.getElementById("createroom");
         const joinRoomButton = document.getElementById("joinroom");
         const leaveRoomButton = document.getElementById("leaveroom");
+        const identity = document.getElementById("identity");
+        const roomPlayers = document.getElementById("room-players");
 
         let gameState_value = 0;
+        let me = { id: -1, name: "Player" };
+        let room_players = {};
 
         let ws = null;        
         function wsOnOpen() {
@@ -112,11 +118,12 @@
         }
         function wsOnClose() {
             console.log("WS disconnected");
+            gameState_value = 0;
             setTimeout(setupWS, 3000);
         }
         function wsOnMesssage(event) {
             msg = JSON.parse(event.data);
-
+            console.log("WS message received:", msg);
             switch (msg.t) {
                 case "rc": // Room chat message
                     addToRoomChat(msg.m, msg.f);
@@ -125,7 +132,7 @@
                     showRoomListInChat(msg.r);
                     break;
                 case "gs": // Game state update
-                    updateGameState(msg.s);
+                    updateGameState(msg.s, msg.p);
                     break;
                 case "pt": // Game text message
                     updatePlayerTyping(msg.m);
@@ -133,11 +140,31 @@
                 case "pw": // Player word message
                     showResultInChat(msg.m, msg.r);
                     break;
+                case "id": // Identity message
+                    me.id = msg.p;
+                    me.name = msg.n;
+                    identity.textContent = `${me.name} (ID: ${me.id})`;
+                    addToRoomChat(`Olá ${me.name}`, -1);
+                    break;
+                case "pid": // Player IDs
+                    player = { [msg.p]: msg.n };
+                    updateRoomPlayers(player, false);
+                    addToRoomChat(`O jogador ${msg.n} entrou na sala`, -1);
+                    break;
+                case "pids": // Player IDs
+                    updateRoomPlayers(msg.p, false);
+                    break;
+                case "pl": // Player left
+                    const playerName = room_players[msg.p];
+                    addToRoomChat(`O jogador ${playerName} saiu da sala`, -1);
+                    player = { [msg.p]: playerName };
+                    updateRoomPlayers(player, true);
+                    break;
 
             }
         }
         function setupWS() {
-            ws = new WebSocket("ws://10.8.0.18:8765");
+            ws = new WebSocket("ws://localhost:15765");
             ws.onopen = wsOnOpen;
             ws.onclose = wsOnClose;
             ws.onmessage = wsOnMesssage;
@@ -146,18 +173,22 @@
 
         function addToRoomChat(msg, from) {
             const msgElement = document.createElement("p");
-            msgElement.textContent = from + ': ' + msg;
 
             const div = document.createElement("div");
 
-            switch (from) {
-                case "srv":
-                    div.classList.add("center");
-                    msgElement.classList.add("srv");
-                    break;
-                default:
-                    msgElement.classList.add("other");
+            if (from == -1) {
+                div.classList.add("center");
+                msgElement.classList.add("srv");
+            } else if (from >= 0) {
+                let playerName = room_players[from];
+                msg = `${playerName}: ${msg}`;
+                msgElement.classList.add("other");
+            } else {
+                div.classList.add("center");
+                msgElement.classList.add("other");
             }
+
+            msgElement.textContent = msg;
 
             div.appendChild(msgElement);
             chat.appendChild(div);
@@ -180,6 +211,8 @@
                     msgElement.classList.add("pwl");
                     break;
             }
+
+            updatePlayerTyping("");
 
             div.appendChild(msgElement);
             chat.appendChild(div);
@@ -223,6 +256,21 @@
             chat.scrollTop = chat.scrollHeight;
         }
 
+        function updateRoomPlayers(pids, remover = false) {            
+            
+            if (remover) {
+                Object.entries(pids).forEach(([pid, name]) => {
+                    delete room_players[pid];
+                });
+            } else {
+                Object.entries(pids).forEach(([pid, name]) => {
+                    room_players[pid] = name;
+                });
+            }
+
+            roomPlayers.textContent = "Players: " + Object.values(room_players).join(", ");
+        }
+
         function updatePlayerTyping(typing) {
             if (typing.length > 0) {
                 playerTyping.textContent = typing;
@@ -231,9 +279,19 @@
             }
         }
 
-        function updateGameState(state) {
+        function updateGameState(state, pid_chosen = null) {
             gameState.textContent = "Game State: " + state;
             gameState_value = state;
+
+            if (pid_chosen !== null) {
+                if (pid_chosen == me.id) {
+                    gameState.textContent += " (You are the chosen player)";
+                    gameState_value = 4;
+                } else {
+                    const playerName = room_players[pid_chosen];
+                    gameState.textContent += " (Chosen Player: " + playerName + ")";
+                }
+            }
         }
 
         function fMsgToSend(type, msg, comm) {
@@ -252,8 +310,17 @@
 
         // Envia o que o usuario estiver digitando em tempo real
         messageInput.oninput = () => {
-            const msg = messageInput.value;
-            ws.send(fMsgToSend("gamemsg", msg, "t"));
+            if (gameState_value == 4) {
+                const msg = messageInput.value;
+                ws.send(fMsgToSend("gamemsg", msg, "t"));
+            }
+        };
+
+        messageInput.onkeyup = (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                sendButton.click();
+            }
         };
 
         // Iniciar o jogo
@@ -298,6 +365,9 @@
         // Sair da sala
         leaveRoomButton.onclick = () => {
             ws.send(fMsgToSend("command", "leave"));
+            roomPlayers.textContent = "Players: ";
+            room_players = {};
+            playerTyping.textContent = "...";
         };
 
         sendButton.onclick = () => {

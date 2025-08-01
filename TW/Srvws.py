@@ -5,10 +5,10 @@ import json
 
 
 class FMsg:
-    def rc(msg, pname=None):
+    def rc(msg, pid=-1):
         return json.dumps({
             "t": "rc",
-            "f": pname if pname else "srv",
+            "f": pid,
             "m": msg
         })
     
@@ -18,12 +18,33 @@ class FMsg:
             "r": {sala.code: [players[pid].name for pid in sala.players] for sala in rooms.values()}
         })
 
-    def gameState(state_id):
+    def gameState(state_id, pid_chosen=None):
         return json.dumps({
             "t": "gs",
-            "s": state_id
+            "s": state_id,
+            "p": pid_chosen
         })
     
+    def identity(pname, pid, me=False):
+        return json.dumps({
+            "t": "id" if me else "pid",
+            "n": pname,
+            "p": pid
+        })
+    
+    def playersIDs(plist):
+        print(f"Players IDs: {plist}")
+        return json.dumps({
+            "t": "pids",
+            "p": {pid: players[pid].name for pid in plist}
+        })
+    
+    def playerLeft(pid):
+        return json.dumps({
+            "t": "pl",
+            "p": pid
+        })
+
     def playerTyping(msg):
         return json.dumps({
             "t": "pt",
@@ -43,10 +64,11 @@ class Player:
         Player.serial += 1
         return Player.serial
 
-    def __init__(self, ws):
+    def __init__(self, ws, pid):
         self.ws = ws
         self.name = None
         self.room = None
+        self.pid = pid
 
 class Room:
     serial = 0
@@ -59,6 +81,7 @@ class Room:
         self.players = set()
         self.code = code
         self.rid = rid
+        self.gameState = 0
 
     async def echo(self, msg, sender_pid=None):
         for pid in self.players:
@@ -66,36 +89,67 @@ class Room:
                 await players[pid].ws.send(msg)
 
     def addPlayer(self, pid):
+        p = players[pid]
         self.players.add(pid)
-        players[pid].room = self.rid
-        asyncio.create_task(self.echo(FMsg.rc(f"{players[pid].name} joined the room")))
+        p.room = self.rid
+        asyncio.create_task(p.ws.send(FMsg.playersIDs(list(self.players)))) # Envia os jogados ja conectados
+        asyncio.create_task(self.echo(FMsg.identity(p.name, pid), pid)) # Envia o novo jogador para os outros
+
 
     def removePlayer(self, pid):
         if pid in self.players:
             players[pid].room = None
         self.players.discard(pid)
-        asyncio.create_task(self.echo(FMsg.rc(f"{players[pid].name} left the room")))
+        asyncio.create_task(self.echo(FMsg.playerLeft(pid))) # Notifica os outros jogadores da saída
         return len(self.players) == 0
-    
+
+    async def setGameState(self, state_id, pid_chosen=None):
+        self.gameState = state_id
+        await self.echo(FMsg.gameState(state_id, pid_chosen))
+
     async def startGame(self):
-        partida = 10
-        while partida > 0:
-            partida -= 1
+        partida = 3
+        p_idx = -1
+        player_played = {}
+
+        def allPlayersPlayed():
+            for pid in self.players:
+                if pid not in player_played or player_played[pid] < partida:
+                    return False
+            return True
+
+        while not allPlayersPlayed():
             await self.echo(FMsg.playerTyping(""))
-            await self.echo(FMsg.gameState(1)) # Loading
+            await self.setGameState(1) # Loading
             await asyncio.sleep(2)
-            await self.echo(FMsg.gameState(2)) # Selecting player
+            await self.setGameState(2) # Selecting player
             await asyncio.sleep(2)
-            pid = random.choice(list(self.players))
+
+            player_list = list(self.players)
+            p_total = len(player_list)
+            if p_idx + 1 < p_total:
+                p_idx += 1
+            else:
+                p_idx = 0
+            pid = player_list[p_idx]
             p = players[pid]
-            await self.echo(FMsg.rc(f"{p.name} is the chosen player for this round"))
+
+            if pid not in player_played:
+                player_played[pid] = 0
+            player_played[pid] += 1
+
             await asyncio.sleep(5)
-            await self.echo(FMsg.gameState(3), pid) # Jogadores não escolhidos
-            await p.ws.send(FMsg.gameState(4)) # Jogador escolhido        
-            
+            await self.echo(FMsg.rc(f"{p.name} is the chosen player for this round"))
+            await self.setGameState(3, pid)
+
+            while not self.msgs.empty():
+                await self.msgs.get()
+
             inicio = asyncio.get_event_loop().time()
+            acertou = False
             while asyncio.get_event_loop().time() - inicio < 10:
                 try:
+                    acertou = False
                     pid_, type, msg = await asyncio.wait_for(self.msgs.get(), timeout=0.1)
                     if pid_ == pid:
                         if type == "t": # Player typing
@@ -103,13 +157,15 @@ class Room:
                         elif type == "m": # Player message
                             # Logica de acerto mock
                             if msg.startswith("a"):
+                                acertou = True
                                 await self.echo(FMsg.playerWord(msg, 1))
                                 break
                             else:
                                 await self.echo(FMsg.playerWord(msg, 0))
                 except asyncio.TimeoutError:
                     continue
-            
+            if not acertou:
+                await self.echo(FMsg.playerWord("Tempo esgotado", 0))
         await self.echo(FMsg.gameState(0))
 
 
@@ -144,7 +200,7 @@ async def hp_messages(pid):
                 await p.ws.send(FMsg.rc("pong"))
             elif c.startswith("me:"):
                 p.name = c[3:]
-                await p.ws.send(FMsg.rc(f"Olá {p.name}"))
+                await p.ws.send(FMsg.identity(p.name, pid, True))
             elif c == "rooms":
                 await p.ws.send(FMsg.rooms())
             elif c.startswith("create:"):
@@ -196,7 +252,7 @@ async def hp_messages(pid):
                     await p.ws.send(FMsg.rc("Room not found"))
                     continue
                 msg = r[2:]
-                await rooms[p.room].echo(FMsg.rc(msg, p.name), pid)
+                await rooms[p.room].echo(FMsg.rc(msg, pid), pid)
         elif "g" in m:  # Game
             g = m["g"]
             if g.startswith("start"):
@@ -220,10 +276,18 @@ async def hp_messages(pid):
                     await p.ws.send(FMsg.rc("You are not in a room"))
                     continue
                 await rooms[p.room].msgs.put((pid, "m", g[2:]))
+            elif g.startswith("gs"):
+                if p.room is None:
+                    await p.ws.send(FMsg.rc("You are not in a room"))
+                    continue
+                if p.room not in rooms:
+                    await p.ws.send(FMsg.rc("Room not found"))
+                    continue
+                await p.ws.send(FMsg.gameState(rooms[p.room].gameState))
 
 async def handler(ws):
     pid = Player.nextSerial()
-    players[pid] = Player(ws)
+    players[pid] = Player(ws, pid)
 
     try:
         print(f"Player {pid} connected")
@@ -234,7 +298,7 @@ async def handler(ws):
         print(f"Player {pid} disconnected")
 
 async def main():
-    server = await websockets.serve(handler, "0.0.0.0", 8765)
+    server = await websockets.serve(handler, "0.0.0.0", 15765)
     print("Server started")
     await server.wait_closed()
 
