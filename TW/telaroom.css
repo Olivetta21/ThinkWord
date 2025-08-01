@@ -1,0 +1,121 @@
+#tela-room {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+#room-ins-header {
+    padding: 20px;
+}
+
+#room-ins-content {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #ccc;
+    gap: 10px;    
+    flex: 1;
+    height: 0;
+}
+
+#room-ins-gamestate {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 5px;
+    border: 1px solid #ccc;
+}
+
+#room-ins-game {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 5px;
+    border: 1px solid #ccc;
+    flex: 1;
+    height: 0;
+}
+#room-ins-players {
+    overflow-y: auto;
+    scrollbar-width: none;
+    height: 100%;
+}
+#room-ins-players>p.me {
+    font-weight: bold;
+    color: rgb(0, 63, 10);
+}
+#room-ins-players>p.playing {
+    background-color: rgb(168, 255, 183);
+}
+
+#room-ins-footer {
+    display: flex;
+    flex-direction: column;
+    padding: 5px;
+    border: 1px solid #ccc;
+}
+
+#room-ins-input-cont {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+#room-ins-input {
+    flex: 1;
+}
+#room-ins-buttons {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+}
+
+
+
+
+
+
+
+#room-ins-chat {
+    height: 100%;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 10px;
+    flex: 1;
+}
+#room-ins-chat>div {
+    padding: 3px;
+    display: flex;
+}
+#room-ins-chat>div.right {
+    justify-content: flex-end;
+}
+#room-ins-chat>div.center {
+    justify-content: center;
+}
+
+#room-ins-chat>div>p {
+    padding: 4px;
+    border-radius: 3px;
+    word-break: break-word;
+    max-width: 90%;
+}
+#room-ins-chat>div>.me {
+    background-color: rgb(168, 255, 183);
+    color: rgb(0, 59, 10);
+}
+#room-ins-chat>div>.srv {
+    background-color: rgb(231, 231, 231);
+    color: rgb(66, 66, 66);
+}        
+#room-ins-chat>div>.pww {
+    background-color: rgb(19, 255, 70);
+    color: rgb(0, 43, 4);
+}      
+#room-ins-chat>div>.pwl {
+    background-color: rgb(255, 149, 9);
+    color: rgb(66, 0, 0);
+}
+#room-ins-chat>div>.other {
+    background-color: rgb(173, 232, 255);
+    color: rgb(0, 39, 56);
+}

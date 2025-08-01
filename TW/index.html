@@ -2,6 +2,8 @@
 <html>
 <head>
     <title>ThinkWord</title>
+    <link rel="stylesheet" href="telamain.css">
+    <link rel="stylesheet" href="telaroom.css">
     <style>
         * {
             margin: 0;
@@ -11,6 +13,7 @@
 
         .tela {
             display: none;
+            max-width: 400px;
         }
         .tela.ativa {
             top: 0;
@@ -88,75 +91,97 @@
     </style>
 </head>
 <body>
-    <div>
-        <button id="change-tela">ChangeTela</button>
-    </div>
-
-    <div id="tela-main" class="tela ativa">
-        <div id="name-input-block">
-            <div id="name-input-container">
-                <p>Nome</p>
-                <div>
-                    <input id="name-input" type="text" placeholder="Seu nome..." />
-                    <button id="name-submit"> OK </button>
-                </div>
-            </div>
-        </div>
-        <div id="room-list-block">
-            <div id="room-list-container">
-                <div id="room-list-header">
-                    <input type="text" id="room-name-input" placeholder="Nome da Sala" />
-                    <button id="join-room">Entrar</button>
-                    <button id="create-room">Criar</button>
-                    <button id="reload-rooms">Recarregar</button>
-                </div>
-                <div id="room-list-content">
-                    <!-- Lista de salas
-                    <div class="rl-room">
-                        <div class="rl-room-info">
-                            <p>Nome da Sala</p>
-                            <div>
-                                <p>Jogador 1</p>
-                                <p>Jogador 2...</p>
-                            </div>
-                        </div>
-                        <button> Entrar </button>
+    <div id="tela-main-page" class="tela ativa">
+        <div id="tela-main">
+            <div id="name-input-block">
+                <div id="name-input-container">
+                    <p>Nome</p>
+                    <div>
+                        <input id="name-input" type="text" placeholder="Seu nome..." />
+                        <button id="name-submit"> OK </button>
                     </div>
-                     -->
+                </div>
+            </div>
+            <div id="room-list-block">
+                <div id="room-list-container">
+                    <div id="room-list-header">
+                        <input type="text" id="room-name-input" placeholder="Nome da Sala" />
+                        <button id="join-room">Entrar</button>
+                        <button id="create-room">Criar</button>
+                        <button id="reload-rooms">Recarregar</button>
+                    </div>
+                    <div id="room-list-content">
+                        <!-- Lista de salas
+                        -->
+                        <div class="rl-room">
+                            <div class="rl-room-info">
+                                <p>Nome da Sala</p>
+                                <div>
+                                    <p>Jogador 1</p>
+                                    <p>Jogador 2...</p>
+                                    <p>Jogador 1</p>
+                                    <p>Jogador 2...</p>
+                                    <p>Jogador 1</p>
+                                    <p>Jogador 2...</p>
+                                    <p>Jogador 1</p>
+                                    <p>Jogador 2...</p>
+                                    <p>Jogador 1</p>
+                                    <p>Jogador 2...</p>
+                                    <p>Jogador 1</p>
+                                    <p>Jogador 2...</p>
+                                </div>
+                            </div>
+                            <button> Entrar </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <div id="tela-room" class="tela">
-        <div id="room-ins-header">
-            <p> Nome da sala</p>
-        </div>
-        <div id="room-ins-content">
-            <div id="room-ins-gamestate">
-                <div id="room-ins-gs">
-
+    <div id="tela-room-page" class="tela">
+        <div id="tela-room">
+            <div id="room-ins-header">
+                <p> Nome da sala</p>
+            </div>
+            <div id="room-ins-content">
+                <div id="room-ins-gamestate">
+                    <div id="room-ins-gs">
+                        <p>Aguardando Jogadores...</p>
+                    </div>
+                    <div id="room-ins-playertyping">                    
+                        <p>PALAVRA</p>
+                    </div>
                 </div>
-                <div id="room-ins-playertyping">                    
-
+                <div id="room-ins-game">
+                    <div id="room-ins-players">
+                        <p class="playing"> jogador2 </p>
+                        <p> jogador3 </p>
+                        <p class="me playing"> jogador1 </p>
+                        <p> jogador2 </p>
+                        <p class="me"> jogador4 </p>
+                    </div>
+                    <div id="room-ins-chat">
+                        <div class="right">
+                            <p class="me"> minha mensagem </p>
+                        </div>
+                        <div class="center">
+                            <p class="srv"> mensagem do servidor </p>
+                        </div>
+                        <div>
+                            <p class="other"> mensagens de outros players </p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div id="room-ins-game">
-                <div id="room-ins-players">
-                    <!-- <p> jogador1... </p> -->
+            <div id="room-ins-footer">
+                <div id="room-ins-input-cont">
+                    <input type="text" id="room-ins-input" placeholder="Digite uma mensagem..." />
+                    <button id="room-ins-send">Enviar</button>
                 </div>
-                <div id="room-ins-chat">
-                    <!-- Mensagens do chat da sala -->
+                <div id="room-ins-buttons">
+                    <button> Sair </button>
+                    <button> Iniciar Jogo </button>
                 </div>
-            </div>
-        </div>
-        <div id="room-ins-footer">
-            <div>
-                <input type="text" id="room-ins-input" placeholder="Digite uma mensagem..." />
-                <button id="room-ins-send">Enviar</button>
-            </div>
-            <div>
-                <button> Sair </button>
-                <button> Iniciar Jogo </button>
             </div>
         </div>
     </div>
@@ -197,8 +222,8 @@
         changeTelaButton.onclick = changeTela;
 
         function changeTela() {
-            const mainTela = document.getElementById("tela-main");
-            const roomTela = document.getElementById("tela-room");
+            const mainTela = document.getElementById("tela-main-page");
+            const roomTela = document.getElementById("tela-room-page");
 
             if (mainTela.classList.contains("ativa")) {
                 mainTela.classList.remove("ativa");
