@@ -22,72 +22,6 @@
             height: 100vh;
             display: block;
         }
-
-        #chat {
-            width: 100%;
-            height: 300px;
-            overflow-y: scroll;
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 10px;
-        }
-        #chat>div {
-            padding: 3px;
-            display: flex;
-        }
-        #chat>div.right {
-            justify-content: flex-end;
-        }
-        #chat>div.center {
-            justify-content: center;
-        }
-
-        #chat>div>p {
-            padding: 4px;
-            border-radius: 3px;
-            word-break: break-word;
-            max-width: 90%;
-        }
-        #chat>div>.me {
-            background-color: rgb(168, 255, 183);
-            color: rgb(0, 59, 10);
-        }
-        #chat>div>.srv {
-            background-color: rgb(231, 231, 231);
-            color: rgb(66, 66, 66);
-        }        
-        #chat>div>.pww {
-            background-color: rgb(19, 255, 70);
-            color: rgb(0, 43, 4);
-        }      
-        #chat>div>.pwl {
-            background-color: rgb(255, 149, 9);
-            color: rgb(66, 0, 0);
-        }
-        #chat>div>.other {
-            background-color: rgb(173, 232, 255);
-            color: rgb(0, 39, 56);
-        }
-        .rc-room {
-            display: flex;
-            flex-direction: column;
-            border: 1px solid #ccc;
-            margin: 5px 0;
-            padding: 5px;
-        }
-        .rc-room:hover {
-            background-color: #f0f0f0;
-            cursor: pointer;
-        }
-        .rc-room>div{
-            display: flex;
-            flex-direction: row;
-            gap: 4px;
-            flex-wrap: wrap;
-        }
-        .rc-room>div>p {
-            border-bottom: 1px solid black;
-        }
     </style>
 </head>
 <body>
@@ -112,27 +46,16 @@
                     </div>
                     <div id="room-list-content">
                         <!-- Lista de salas
-                        -->
                         <div class="rl-room">
                             <div class="rl-room-info">
                                 <p>Nome da Sala</p>
                                 <div>
-                                    <p>Jogador 1</p>
-                                    <p>Jogador 2...</p>
-                                    <p>Jogador 1</p>
-                                    <p>Jogador 2...</p>
-                                    <p>Jogador 1</p>
-                                    <p>Jogador 2...</p>
-                                    <p>Jogador 1</p>
-                                    <p>Jogador 2...</p>
-                                    <p>Jogador 1</p>
-                                    <p>Jogador 2...</p>
-                                    <p>Jogador 1</p>
-                                    <p>Jogador 2...</p>
+                                    <p>Jogador 1...</p>
                                 </div>
                             </div>
                             <button> Entrar </button>
                         </div>
+                        -->
                     </div>
                 </div>
             </div>
@@ -141,26 +64,29 @@
     <div id="tela-room-page" class="tela">
         <div id="tela-room">
             <div id="room-ins-header">
-                <p> Nome da sala</p>
+                <p id="room-name">Nome da sala</p>
             </div>
             <div id="room-ins-content">
                 <div id="room-ins-gamestate">
                     <div id="room-ins-gs">
-                        <p>Aguardando Jogadores...</p>
+                        
                     </div>
-                    <div id="room-ins-playertyping">                    
-                        <p>PALAVRA</p>
+                    <div id="room-ins-playertyping">
+
                     </div>
                 </div>
                 <div id="room-ins-game">
                     <div id="room-ins-players">
+                        <!--
                         <p class="playing"> jogador2 </p>
                         <p> jogador3 </p>
                         <p class="me playing"> jogador1 </p>
                         <p> jogador2 </p>
                         <p class="me"> jogador4 </p>
+                        -->
                     </div>
                     <div id="room-ins-chat">
+                        <!--
                         <div class="right">
                             <p class="me"> minha mensagem </p>
                         </div>
@@ -170,6 +96,7 @@
                         <div>
                             <p class="other"> mensagens de outros players </p>
                         </div>
+                        -->
                     </div>
                 </div>
             </div>
@@ -179,47 +106,34 @@
                     <button id="room-ins-send">Enviar</button>
                 </div>
                 <div id="room-ins-buttons">
-                    <button> Sair </button>
-                    <button> Iniciar Jogo </button>
+                    <button id="room-ins-leaveroom"> Sair </button>
+                    <button id="room-ins-startgame"> Iniciar Jogo </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <h1>ThinkWord</h1>
-    <div id="chat"></div>
-    <p id="game-state"></p>
-    <input id="message" type="text" placeholder="Type a message..." />
-    <p id="player-typing"></p>
-    <p id="identity"></p>
-    <p id="room-players"></p>
-    <button id="send">Send</button>
-    <button id="start">Start Game</button>
-    <button id="ping">Ping</button>
-    <button id="setname">Set Name</button>
-    <button id="rooms">List Rooms</button>
-    <button id="createroom">Create Room</button>
-    <button id="joinroom">Join Room</button>
-    <button id="leaveroom">Leave Room</button>
-
     <script>
-        const chat = document.getElementById("chat");
-        const gameState = document.getElementById("game-state");
-        const messageInput = document.getElementById("message");
-        const playerTyping = document.getElementById("player-typing");
-        const sendButton = document.getElementById("send");
-        const startButton = document.getElementById("start");
-        const pingButton = document.getElementById("ping");
-        const setNameButton = document.getElementById("setname");
-        const roomsButton = document.getElementById("rooms");
-        const createRoomButton = document.getElementById("createroom");
-        const joinRoomButton = document.getElementById("joinroom");
-        const leaveRoomButton = document.getElementById("leaveroom");
-        const identity = document.getElementById("identity");
-        const roomPlayers = document.getElementById("room-players");
-        const changeTelaButton = document.getElementById("change-tela");
+        const chat = document.getElementById("room-ins-chat");
+        const gameState = document.getElementById("room-ins-gs");
+        const playerTyping = document.getElementById("room-ins-playertyping");
+        const startButton = document.getElementById("room-ins-startgame");
+        const leaveRoomButton = document.getElementById("room-ins-leaveroom");
+        const roomsButton = document.getElementById("reload-rooms");
+        const roomPlayers = document.getElementById("room-ins-players");
+        const createRoomButton = document.getElementById("create-room");
+        
+        const nameInputContainer = document.getElementById("name-input-container");
+        const nameInput = document.getElementById("name-input");
+        const setNameButton = document.getElementById("name-submit");
 
-        changeTelaButton.onclick = changeTela;
+        const messageInput = document.getElementById("room-ins-input");
+        const sendButton = document.getElementById("room-ins-send");        
+        
+        const roomNameP = document.getElementById("room-name");
+        const roomNameInput = document.getElementById("room-name-input");
+        const joinRoomButton = document.getElementById("join-room");
+        
 
         function changeTela() {
             const mainTela = document.getElementById("tela-main-page");
@@ -262,7 +176,10 @@
                     addToRoomChat(msg.m, msg.f);
                     break;
                 case "rl": // Room list
-                    showRoomListInChat(msg.r);
+                    showRoomList(msg.r);
+                    break;
+                case "er": // Entering room
+                    enterRoom(msg.r);
                     break;
                 case "gs": // Game state update
                     updateGameState(msg.s, msg.p);
@@ -274,24 +191,21 @@
                     showResultInChat(msg.m, msg.r);
                     break;
                 case "id": // Identity message
-                    me.id = msg.p;
-                    me.name = msg.n;
-                    identity.textContent = `${me.name} (ID: ${me.id})`;
-                    addToRoomChat(`Olá ${me.name}`, -1);
+                    setPlayerId(msg.p, msg.n);
                     break;
                 case "pid": // Player IDs
                     player = { [msg.p]: msg.n };
-                    updateRoomPlayers(player, false);
+                    modifyRoomPlayerList(player, false);
                     addToRoomChat(`O jogador ${msg.n} entrou na sala`, -1);
                     break;
                 case "pids": // Player IDs
-                    updateRoomPlayers(msg.p, false);
+                    modifyRoomPlayerList(msg.p, false);
                     break;
                 case "pl": // Player left
                     const playerName = room_players[msg.p];
                     addToRoomChat(`O jogador ${playerName} saiu da sala`, -1);
                     player = { [msg.p]: playerName };
-                    updateRoomPlayers(player, true);
+                    modifyRoomPlayerList(player, true);
                     break;
 
             }
@@ -313,6 +227,12 @@
                 return;
             }
             addToRoomChat(`Error: ${ERRORTABLE[err] || "Unknown error"}`, -1);
+        }
+
+        function setPlayerId(id, name) {
+            me.id = id;
+            me.name = name;
+            nameInputContainer.innerHTML = `<p>Olá ${me.name} !</p>`;
         }
 
         function addToRoomChat(msg, from) {
@@ -363,44 +283,73 @@
             chat.scrollTop = chat.scrollHeight;
         }
 
-        function showRoomListInChat(rooms) {
-            const line = document.createElement("div");
-            line.classList.add("center");
-            
-            const holder = document.createElement("div");
-            holder.classList.add("holder-room");
+        function enterRoom(roomCode) {
+            roomNameP.textContent = roomCode;
+            if (roomCode == -1) {
+                leavingRoom();
+            }
+            changeTela();
+        }
+
+        function leavingRoom() {
+            chat.innerHTML = "";
+            room_players = {};
+            roomPlayers.innerHTML = "";
+            playerTyping.textContent = "...";
+        }
+
+        function showRoomList(rooms) {
+            const roomListContent = document.getElementById("room-list-content");
+            roomListContent.innerHTML = "";
 
             for (const [roomCode, players] of Object.entries(rooms)) {
                 const room = document.createElement("div");
-                room.classList.add("rc-room");
+                room.classList.add("rl-room");
 
-                room.addEventListener("click", () => {
-                    ws.send(fMsgToSend("command", roomCode, "join"));
-                });
+                const roomInfo = document.createElement("div");
+                roomInfo.classList.add("rl-room-info");
 
                 const rcode = document.createElement("p");
                 rcode.textContent = roomCode;
 
-                room.appendChild(rcode);
-
-                const div = document.createElement("div");
-
+                const playerDiv = document.createElement("div");
                 for (const player of players) {
                     const p = document.createElement("p");
                     p.textContent = player;
-
-                    div.appendChild(p);
+                    playerDiv.appendChild(p);
                 }
 
-                room.appendChild(div);
-                holder.appendChild(room);
+                roomInfo.appendChild(rcode);
+                roomInfo.appendChild(playerDiv);
+                room.appendChild(roomInfo);
+
+                const joinButton = document.createElement("button");
+                joinButton.textContent = "Entrar";
+                joinButton.onclick = () => {
+                    ws.send(fMsgToSend("command", roomCode, "join"));
+                };
+
+                room.appendChild(joinButton);
+                roomListContent.appendChild(room);
             }
-            line.appendChild(holder);
-            chat.appendChild(line);
-            chat.scrollTop = chat.scrollHeight;
         }
 
-        function updateRoomPlayers(pids, remover = false) {            
+        function refreshRoomPlayers(playing_pid = -1) {            
+            roomPlayers.innerHTML = "";
+            Object.entries(room_players).forEach(([pid, name]) => {
+                const p = document.createElement("p");
+                p.textContent = name;
+                if (pid == me.id) {
+                    p.classList.add("me");
+                }
+                if (pid == playing_pid) {
+                    p.classList.add("playing");
+                }
+                roomPlayers.appendChild(p);
+            });
+        }
+
+        function modifyRoomPlayerList(pids, remover = false) {            
             
             if (remover) {
                 Object.entries(pids).forEach(([pid, name]) => {
@@ -412,7 +361,8 @@
                 });
             }
 
-            roomPlayers.textContent = "Players: " + Object.values(room_players).join(", ");
+            refreshRoomPlayers();
+
         }
 
         function updatePlayerTyping(typing) {
@@ -435,6 +385,7 @@
                     const playerName = room_players[pid_chosen];
                     gameState.textContent += " (Chosen Player: " + playerName + ")";
                 }
+                refreshRoomPlayers(pid_chosen);
             }
         }
 
@@ -472,14 +423,17 @@
             ws.send(fMsgToSend("gamemsg", "start"));
         };
 
-        // pingpong
-        pingButton.onclick = () => {
-            ws.send(fMsgToSend("command", "ping"));
+
+        nameInput.onkeyup = (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                setNameButton.click();
+            }
         };
 
         // Definir o nome do usuário
         setNameButton.onclick = () => {
-            const name = prompt("Enter your name:");
+            const name = nameInput.value.trim();
             if (name) {
                 ws.send(fMsgToSend("command", name, "me"));
             }
@@ -492,7 +446,7 @@
 
         // Criar uma sala
         createRoomButton.onclick = () => {
-            const roomName = prompt("Enter room name:");
+            const roomName = roomNameInput.value.trim();
             if (roomName) {
                 ws.send(fMsgToSend("command", roomName, "create"));
             }
@@ -500,7 +454,7 @@
 
         // Entrar em uma sala
         joinRoomButton.onclick = () => {
-            const roomName = prompt("Enter room name:");
+            const roomName = roomNameInput.value.trim();
             if (roomName) {
                 ws.send(fMsgToSend("command", roomName, "join"));
             }
@@ -509,13 +463,11 @@
         // Sair da sala
         leaveRoomButton.onclick = () => {
             ws.send(fMsgToSend("roomchat", "leave"));
-            roomPlayers.textContent = "Players: ";
-            room_players = {};
-            playerTyping.textContent = "...";
         };
 
         sendButton.onclick = () => {
-            const msg = messageInput.value;
+            const msg = messageInput.value.trim();
+            if (msg.length === 0) return;
 
             if (gameState_value == 4) {
                 ws.send(fMsgToSend("gamemsg", msg, "m"));

@@ -10,6 +10,7 @@ ERRORTABLE = {
     "NIR": "Not in room",
     "NEP": "Not enough players",
     "PAR": "Player already in room",
+    "RAC": "Room already created",
 }
 
 class FMsg:
@@ -39,6 +40,12 @@ class FMsg:
         return json.dumps({
             "t": "rl",
             "r": {sala.code: [players[pid].name for pid in sala.players] for sala in rooms.values()}
+        })
+    
+    def enteringRoom(room_code):
+        return json.dumps({
+            "t": "er",
+            "r": room_code
         })
 
     def gameState(state_id, pid_chosen=None):
@@ -115,6 +122,7 @@ class Room:
         p = players[pid]
         self.players.add(pid)
         p.room = self.rid
+        asyncio.create_task(p.ws.send(FMsg.enteringRoom(self.code))) # Notifica o jogador que entrou na sala
         asyncio.create_task(p.ws.send(FMsg.playersIDs(list(self.players)))) # Envia os jogados ja conectados
         asyncio.create_task(self.echo(FMsg.identity(p.name, pid), pid)) # Envia o novo jogador para os outros
 
@@ -131,7 +139,9 @@ class Room:
         await self.echo(FMsg.gameState(state_id, pid_chosen))
 
     async def startGame(self):
-        partida = 3
+        if self.gameState != 0:
+            return
+        partida = 1
         p_idx = -1
         player_played = {}
 
@@ -188,7 +198,7 @@ class Room:
                     continue
             if not acertou:
                 await self.echo(FMsg.playerWord("Tempo esgotado", 0))
-        await self.echo(FMsg.gameState(0))
+        await self.setGameState(0) 
 
 
 def remPlayerFromRoom(pid, rid = None):        
@@ -233,6 +243,9 @@ async def hp_messages(pid):
                     await p.ws.send(FMsg.error("PAR"))
                     continue
                 room_code = c[7:]
+                if room_code in [room.code for room in rooms.values()]:
+                    await p.ws.send(FMsg.error("RAC"))
+                    continue
                 rid = Room.nextSerial()
                 rooms[rid] = Room(room_code, rid)
                 rooms[rid].addPlayer(pid)
@@ -266,6 +279,8 @@ async def hp_messages(pid):
                     await p.ws.send(FMsg.error("RNF"))
                     continue
                 msg = r[2:]
+                if not msg:
+                    continue
                 await rooms[p.room].echo(FMsg.rc(msg, pid), pid)
             elif r.startswith("leave"):
                 if p.room is None:
@@ -277,7 +292,7 @@ async def hp_messages(pid):
                 else:
                     remPlayerFromRoom(pid)
                     p.room = None
-                await p.ws.send(FMsg.rc("Left room"))
+                await p.ws.send(FMsg.enteringRoom(-1))  # Notifica o jogador que saiu da sala
         elif "g" in m:  # Game
             g = m["g"]
             if g.startswith("start"):
