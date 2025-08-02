@@ -22,9 +22,69 @@
             height: 100vh;
             display: block;
         }
+
+
+        #toast-messages-window.hidden {
+            display: none;
+        }
+        #toast-messages-window {
+            pointer-events: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: right;
+            z-index: 1000;
+        }
+        #toast-messages {
+            width: 300px;
+            display: flex;
+            flex-direction: column-reverse;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 20px;
+            
+            border-radius: 5px;
+        }
+        .toast {
+            background-color: black;
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+        }
+        .toast.success {
+            background-color: rgba(173, 221, 173, 0.5);
+            color: rgb(0, 61, 0);
+        }
+        .toast.error {
+            background-color: rgba(255, 173, 173, 0.5);
+            color: rgb(61, 0, 0);
+        }
+        .toast.info {
+            background-color: rgba(173, 173, 255, 0.5);
+            color: rgb(0, 0, 61);
+        }
     </style>
 </head>
 <body>
+    <div id="toast-messages-window" class="hidden">
+        <div id="toast-messages">
+            <!--
+            <div class="toast success">
+                <p>Mensagem de sucesso</p>
+            </div>
+            <div class="toast error">
+                <p>Mensagem de erro</p>
+            </div>
+            <div class="toast info">
+                <p>Mensagem informativa</p>
+            </div>
+            -->
+        </div>
+    </div>
     <div id="tela-main-page" class="tela ativa">
         <div id="tela-main">
             <div id="name-input-block">
@@ -134,6 +194,26 @@
         const roomNameInput = document.getElementById("room-name-input");
         const joinRoomButton = document.getElementById("join-room");
         
+        
+        const toastMessagesWindow = document.getElementById("toast-messages-window");
+        const toastMessages = document.getElementById("toast-messages");
+
+        function addToastMessage(message, type = "info") {
+            const toast = document.createElement("div");
+            toast.classList.add("toast", type);
+            toast.textContent = message;
+
+            toastMessages.appendChild(toast);
+            toastMessagesWindow.classList.remove("hidden");
+
+            setTimeout(() => {
+                toast.remove();
+                if (toastMessages.children.length === 0) {
+                    toastMessagesWindow.classList.add("hidden");
+                }
+            }, 3000);
+        }
+
 
         function changeTela() {
             const mainTela = document.getElementById("tela-main-page");
@@ -211,7 +291,7 @@
             }
         }
         function setupWS() {
-            ws = new WebSocket("ws://localhost:15765");
+            ws = new WebSocket("ws://10.8.0.10:15765");
             ws.onopen = wsOnOpen;
             ws.onclose = wsOnClose;
             ws.onmessage = wsOnMesssage;
@@ -226,7 +306,7 @@
                 }, 1000);
                 return;
             }
-            addToRoomChat(`Error: ${ERRORTABLE[err] || "Unknown error"}`, -1);
+            addToastMessage(`Error: ${ERRORTABLE[err] || "Unknown error"}`, "error");
         }
 
         function setPlayerId(id, name) {
@@ -381,6 +461,7 @@
                 if (pid_chosen == me.id) {
                     gameState.textContent += " (You are the chosen player)";
                     gameState_value = 4;
+                    addToastMessage("Você é o jogador escolhido!", "info");
                 } else {
                     const playerName = room_players[pid_chosen];
                     gameState.textContent += " (Chosen Player: " + playerName + ")";
