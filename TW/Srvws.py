@@ -171,19 +171,30 @@ class Room:
         self.dictionary = []
         self.letters = ""
         db = getDB()
+
+        min_dictionary_size = 50
+        tmp_dictionary = []
+
         with db.cursor() as cur:
-            cur.execute("select w from w_ptbr order by random() limit 1;")
-            word = cur.fetchone()[0]
-            tamanho = len(word)
-            if tamanho < 3:
-                self.letters = word
-            else:
-                qntd = random.randint(2, 3)
-                start = random.randint(0, tamanho - qntd)
+            while len(tmp_dictionary) < min_dictionary_size: # O dicionario deve ter pelo menos 50 palavras
+                min_len = 2
+                max_len = 4
+                cur.execute("select w from w_ptbr order by random() limit 1;")
+                word = cur.fetchone()[0]
+                w_len = len(word)
+
+                if w_len < max_len:
+                    max_len = w_len
+
+                qntd = random.randint(min_len, max_len)
+                start = random.randint(0, w_len - qntd)            
                 self.letters = word[start:start + qntd]
-            print(f"Selected letters: {self.letters} from word: {word}")
-            cur.execute(f"SELECT w FROM w_ptbr where w like '%{self.letters}%';")
-            self.dictionary = [row[0] for row in cur.fetchall()]
+
+                print(f"Selected letters: {self.letters} from word: {word}")
+                cur.execute(f"SELECT w FROM w_ptbr where w like '%{self.letters}%';")
+
+                tmp_dictionary = [row[0] for row in cur.fetchall()]
+        self.dictionary = tmp_dictionary
         print(f"Dictionary loaded with {len(self.dictionary)} words")
 
     async def startGame(self):
@@ -204,6 +215,7 @@ class Room:
             await self.echo(FMsg.playerTyping(""))
             await self.setGameState(1) # Loading
             await self.loadDictionary()
+            words_used.append(self.letters) # Não pode usar as letras escolhidas na rodada
             #await asyncio.sleep(1)
             await self.setGameState(2) # Selecting player
             player_list = list(self.players)
@@ -221,7 +233,7 @@ class Room:
             player_played[pid]["played"] += 1
             #await asyncio.sleep(5)
             await self.setGameState(3, pid)
-            #await asyncio.sleep(1)
+            await asyncio.sleep(1)
             await self.echo(FMsg.gameLetters(self.letters))
 
             while not self.msgs.empty():
@@ -236,12 +248,21 @@ class Room:
                         if type == "t": # Player typing
                             await self.echo(FMsg.playerTyping(msg), pid)
                         elif type == "m": # Player message
-                            # Logica de acerto mock
                             msg = msg.strip().upper()
                             if msg in self.dictionary and msg not in words_used:
                                 words_used.append(msg)
+
+                                # Logica Pontuação
+                                player_points = 1
+                                if len(self.letters) > 3:
+                                    player_points += 1
+                                if len(msg) > 7:
+                                    player_points += 1
+                                if len(self.dictionary) < 100:
+                                    player_points += 1
+
                                 acertou = True
-                                player_played[pid]["points"] += 1
+                                player_played[pid]["points"] += player_points
                                 await self.echo(FMsg.playerWord(msg, 1))
                                 break
                             else:
@@ -249,7 +270,8 @@ class Room:
                 except asyncio.TimeoutError:
                     continue
             if not acertou:
-                await self.echo(FMsg.playerWord("Tempo esgotado", 0))            
+                player_played[pid]["points"] -= 1
+                await self.echo(FMsg.playerWord("Tempo esgotado", 0))
             await self.echo(FMsg.playerPoints(pid, player_played[pid]["points"]))
         await self.setGameState(0)
         self.letters = ""
