@@ -2,6 +2,19 @@ import asyncio
 import websockets
 import random
 import json
+import psycopg
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+db = None
+DB_URL = os.getenv("DB_URL")
+
+def getDB():
+    global db
+    if db is None or db.closed:
+        db = psycopg.connect(DB_URL)
+    return db
 
 ERRORTABLE = {
     "RNF": "Sala não encontrada",
@@ -48,6 +61,12 @@ class FMsg:
         return json.dumps({
             "t": "er",
             "r": room_code
+        })
+    
+    def gameLetters(letters):
+        return json.dumps({
+            "t": "gl",
+            "l": letters
         })
 
     def gameState(state_id, pid_chosen=None):
@@ -121,6 +140,8 @@ class Room:
         self.code = code
         self.rid = rid
         self.gameState = 0
+        self.dictionary = []
+        self.letters = ""
 
     async def echo(self, msg, sender_pid=None):
         for pid in self.players:
@@ -135,7 +156,6 @@ class Room:
         asyncio.create_task(p.ws.send(FMsg.playersIDs(list(self.players)))) # Envia os jogados ja conectados
         asyncio.create_task(self.echo(FMsg.identity(p.name, pid), pid)) # Envia o novo jogador para os outros
 
-
     def removePlayer(self, pid):
         if pid in self.players:
             players[pid].room = None
@@ -147,12 +167,32 @@ class Room:
         self.gameState = state_id
         await self.echo(FMsg.gameState(state_id, pid_chosen))
 
+    async def loadDictionary(self):
+        self.dictionary = []
+        self.letters = ""
+        db = getDB()
+        with db.cursor() as cur:
+            cur.execute("select w from w_ptbr order by random() limit 1;")
+            word = cur.fetchone()[0]
+            tamanho = len(word)
+            if tamanho < 3:
+                self.letters = word
+            else:
+                qntd = random.randint(2, 3)
+                start = random.randint(0, tamanho - qntd)
+                self.letters = word[start:start + qntd]
+            print(f"Selected letters: {self.letters} from word: {word}")
+            cur.execute(f"SELECT w FROM w_ptbr where w like '%{self.letters}%';")
+            self.dictionary = [row[0] for row in cur.fetchall()]
+        print(f"Dictionary loaded with {len(self.dictionary)} words")
+
     async def startGame(self):
         if self.gameState != 0:
             return
-        partida = 3
+        partida = 30
         p_idx = -1
         player_played = {}
+        words_used = []
 
         def allPlayersPlayed():
             for pid in self.players:
@@ -163,10 +203,9 @@ class Room:
         while not allPlayersPlayed():
             await self.echo(FMsg.playerTyping(""))
             await self.setGameState(1) # Loading
-            await asyncio.sleep(2)
+            await self.loadDictionary()
+            #await asyncio.sleep(1)
             await self.setGameState(2) # Selecting player
-            await asyncio.sleep(2)
-
             player_list = list(self.players)
             if p_idx + 1 < len(player_list):
                 p_idx += 1
@@ -180,9 +219,10 @@ class Room:
                     "points": 0
                 }
             player_played[pid]["played"] += 1
-
-            await asyncio.sleep(5)
+            #await asyncio.sleep(5)
             await self.setGameState(3, pid)
+            #await asyncio.sleep(1)
+            await self.echo(FMsg.gameLetters(self.letters))
 
             while not self.msgs.empty():
                 await self.msgs.get()
@@ -197,7 +237,9 @@ class Room:
                             await self.echo(FMsg.playerTyping(msg), pid)
                         elif type == "m": # Player message
                             # Logica de acerto mock
-                            if msg.startswith("a"):
+                            msg = msg.strip().upper()
+                            if msg in self.dictionary and msg not in words_used:
+                                words_used.append(msg)
                                 acertou = True
                                 player_played[pid]["points"] += 1
                                 await self.echo(FMsg.playerWord(msg, 1))
@@ -209,7 +251,9 @@ class Room:
             if not acertou:
                 await self.echo(FMsg.playerWord("Tempo esgotado", 0))            
             await self.echo(FMsg.playerPoints(pid, player_played[pid]["points"]))
-        await self.setGameState(0) 
+        await self.setGameState(0)
+        self.letters = ""
+        self.dictionary = []
 
 
 def remPlayerFromRoom(pid, rid = None):        

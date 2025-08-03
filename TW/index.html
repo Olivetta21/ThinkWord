@@ -263,6 +263,9 @@
                 case "er": // Entering room
                     enterRoom(msg.r);
                     break;
+                case "gl": // Game letters
+                    showGameLetters(msg.l);
+                    break;
                 case "gs": // Game state update
                     updateGameState(msg.s, msg.p);
                     break;
@@ -419,6 +422,10 @@
                 room.appendChild(joinButton);
                 roomListContent.appendChild(room);
             }
+        }
+
+        function showGameLetters(letters) {
+            addToRoomChat(`As letras escolhidas são: ${letters}`, -1);
         }
 
         function refreshRoomPlayers(playing_pid = -1) {            
