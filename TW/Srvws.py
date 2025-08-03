@@ -4,13 +4,15 @@ import random
 import json
 
 ERRORTABLE = {
-    "RNF": "Room not found",
-    "PNF": "Player not found",
-    "NPN": "No player name",
-    "NIR": "Not in room",
-    "NEP": "Not enough players",
-    "PAR": "Player already in room",
-    "RAC": "Room already created",
+    "RNF": "Sala não encontrada",
+    "PNF": "Jogador não encontrado",
+    "NPN": "Você ainda não disse seu nome.",
+    "NIR": "Você não está em uma sala.",
+    "NEP": "Jogadores insuficientes.",
+    "PAR": "Você já está em uma sala.",
+    "RAC": "Essa sala já existe.",
+    "PNL": "Nome do jogador deve ter entre 4 e 10 caracteres.",
+    "RNL": "Nome da sala deve ter entre 8 e 20 caracteres.",
 }
 
 class FMsg:
@@ -53,6 +55,13 @@ class FMsg:
             "t": "gs",
             "s": state_id,
             "p": pid_chosen
+        })
+    
+    def playerPoints(pid, points):
+        return json.dumps({
+            "t": "pp",
+            "p": pid,
+            "pts": points
         })
     
     def identity(pname, pid, me=False):
@@ -141,13 +150,13 @@ class Room:
     async def startGame(self):
         if self.gameState != 0:
             return
-        partida = 1
+        partida = 3
         p_idx = -1
         player_played = {}
 
         def allPlayersPlayed():
             for pid in self.players:
-                if pid not in player_played or player_played[pid] < partida:
+                if pid not in player_played or player_played[pid]["played"] < partida:
                     return False
             return True
 
@@ -159,17 +168,18 @@ class Room:
             await asyncio.sleep(2)
 
             player_list = list(self.players)
-            p_total = len(player_list)
-            if p_idx + 1 < p_total:
+            if p_idx + 1 < len(player_list):
                 p_idx += 1
             else:
                 p_idx = 0
             pid = player_list[p_idx]
-            p = players[pid]
 
             if pid not in player_played:
-                player_played[pid] = 0
-            player_played[pid] += 1
+                player_played[pid] = {
+                    "played": 0,
+                    "points": 0
+                }
+            player_played[pid]["played"] += 1
 
             await asyncio.sleep(5)
             await self.setGameState(3, pid)
@@ -181,7 +191,6 @@ class Room:
             acertou = False
             while asyncio.get_event_loop().time() - inicio < 10:
                 try:
-                    acertou = False
                     pid_, type, msg = await asyncio.wait_for(self.msgs.get(), timeout=0.1)
                     if pid_ == pid:
                         if type == "t": # Player typing
@@ -190,6 +199,7 @@ class Room:
                             # Logica de acerto mock
                             if msg.startswith("a"):
                                 acertou = True
+                                player_played[pid]["points"] += 1
                                 await self.echo(FMsg.playerWord(msg, 1))
                                 break
                             else:
@@ -197,7 +207,8 @@ class Room:
                 except asyncio.TimeoutError:
                     continue
             if not acertou:
-                await self.echo(FMsg.playerWord("Tempo esgotado", 0))
+                await self.echo(FMsg.playerWord("Tempo esgotado", 0))            
+            await self.echo(FMsg.playerPoints(pid, player_played[pid]["points"]))
         await self.setGameState(0) 
 
 
@@ -232,6 +243,9 @@ async def hp_messages(pid):
                 await p.ws.send(FMsg.rc("pong"))
             elif c.startswith("me:"):
                 p.name = c[3:]
+                if len(p.name) < 4 or len(p.name) > 10:
+                    await p.ws.send(FMsg.error("PNL"))
+                    continue
                 await p.ws.send(FMsg.identity(p.name, pid, True))
             elif c == "rooms":
                 await p.ws.send(FMsg.rooms())
@@ -243,6 +257,9 @@ async def hp_messages(pid):
                     await p.ws.send(FMsg.error("PAR"))
                     continue
                 room_code = c[7:]
+                if len(room_code) < 8 or len(room_code) > 20:
+                    await p.ws.send(FMsg.error("RNL"))
+                    continue
                 if room_code in [room.code for room in rooms.values()]:
                     await p.ws.send(FMsg.error("RAC"))
                     continue

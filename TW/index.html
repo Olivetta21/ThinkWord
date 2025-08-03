@@ -231,7 +231,9 @@
 
         let gameState_value = 0;
         let me = { id: -1, name: "Player" };
-        let room_players = {};
+        let room_players = {
+            // "player_id": { "name": "Player Name", "points": 0 }
+        };
 
         let ws = null;        
         function wsOnOpen() {
@@ -264,6 +266,9 @@
                 case "gs": // Game state update
                     updateGameState(msg.s, msg.p);
                     break;
+                case "pp": // Player points update
+                    updatePlayerPoints(msg.p, msg.pts);
+                    break;
                 case "pt": // Game text message
                     updatePlayerTyping(msg.m);
                     break;
@@ -282,7 +287,7 @@
                     modifyRoomPlayerList(msg.p, false);
                     break;
                 case "pl": // Player left
-                    const playerName = room_players[msg.p];
+                    const playerName = room_players[msg.p].name;
                     addToRoomChat(`O jogador ${playerName} saiu da sala`, -1);
                     player = { [msg.p]: playerName };
                     modifyRoomPlayerList(player, true);
@@ -306,13 +311,14 @@
                 }, 1000);
                 return;
             }
-            addToastMessage(`Error: ${ERRORTABLE[err] || "Unknown error"}`, "error");
+            addToastMessage(`${ERRORTABLE[err] || "Unknown error"}`, "error");
         }
 
         function setPlayerId(id, name) {
             me.id = id;
             me.name = name;
             nameInputContainer.innerHTML = `<p>Olá ${me.name} !</p>`;
+            addToastMessage(`Olá ${me.name} !`, "success");
         }
 
         function addToRoomChat(msg, from) {
@@ -324,7 +330,7 @@
                 div.classList.add("center");
                 msgElement.classList.add("srv");
             } else if (from >= 0) {
-                let playerName = room_players[from];
+                let playerName = room_players[from].name;
                 msg = `${playerName}: ${msg}`;
                 msgElement.classList.add("other");
             } else {
@@ -376,6 +382,7 @@
             room_players = {};
             roomPlayers.innerHTML = "";
             playerTyping.textContent = "...";
+            updateGameState(0);
         }
 
         function showRoomList(rooms) {
@@ -416,9 +423,15 @@
 
         function refreshRoomPlayers(playing_pid = -1) {            
             roomPlayers.innerHTML = "";
-            Object.entries(room_players).forEach(([pid, name]) => {
+            Object.entries(room_players).forEach(([pid, player]) => {
                 const p = document.createElement("p");
-                p.textContent = name;
+                let name = player.name;
+                let points = player.points || 0;
+
+                if (name.length > 5) {
+                    name = name.substring(0, 5) + "...";
+                }
+                p.textContent = `${name}: ${points}`;
                 if (pid == me.id) {
                     p.classList.add("me");
                 }
@@ -429,20 +442,29 @@
             });
         }
 
-        function modifyRoomPlayerList(pids, remover = false) {            
-            
+        function modifyRoomPlayerList(pids, remover = false) {
             if (remover) {
                 Object.entries(pids).forEach(([pid, name]) => {
                     delete room_players[pid];
                 });
             } else {
                 Object.entries(pids).forEach(([pid, name]) => {
-                    room_players[pid] = name;
+                    if (!room_players[pid]) {
+                        room_players[pid] = {"name": name, "points": 0 };
+                    } else {
+                        room_players[pid].name = name;
+                    }
                 });
             }
 
             refreshRoomPlayers();
+        }
 
+        function updatePlayerPoints(pid, points) {
+            if (room_players[pid]) {
+                room_players[pid].points = points;
+                refreshRoomPlayers();
+            }
         }
 
         function updatePlayerTyping(typing) {
@@ -454,20 +476,46 @@
         }
 
         function updateGameState(state, pid_chosen = null) {
-            gameState.textContent = "Game State: " + state;
+            if (gameState_value == 0 && state == 1) {                
+                // Resetar as pontuações dos jogadores
+                console.log("players: ", room_players);
+                Object.entries(room_players).forEach(([pid, player]) => {
+                    player.points = 0;
+                });
+                refreshRoomPlayers();
+            }
+
             gameState_value = state;
 
-            if (pid_chosen !== null) {
-                if (pid_chosen == me.id) {
-                    gameState.textContent += " (You are the chosen player)";
-                    gameState_value = 4;
-                    addToastMessage("Você é o jogador escolhido!", "info");
-                } else {
-                    const playerName = room_players[pid_chosen];
-                    gameState.textContent += " (Chosen Player: " + playerName + ")";
-                }
-                refreshRoomPlayers(pid_chosen);
+
+            switch (state) {
+                case 0:
+                    gameState.textContent = "esperando...";
+                    playerTyping.textContent = "...";
+                    refreshRoomPlayers();
+                    break;
+                case 1:
+                    gameState.textContent = "Iniciando jogo...";
+                    break;
+                case 2:
+                    gameState.textContent = "Escolhendo jogador...";
+                    break;
+                case 3:
+                    gameState.textContent = "Jogo em andamento...";
+                    if (pid_chosen !== null) {
+                        if (pid_chosen == me.id) {
+                            gameState.textContent = "Sua vez!";
+                            gameState_value = 4;
+                            addToastMessage("Você é o jogador escolhido!", "info");
+                        } else {
+                            const playerName = room_players[pid_chosen].name;
+                            gameState.textContent = playerName + " está jogando.";
+                        }
+                        refreshRoomPlayers(pid_chosen);
+                    }
+                    break;
             }
+
         }
 
         function fMsgToSend(type, msg, comm) {
@@ -515,6 +563,10 @@
         // Definir o nome do usuário
         setNameButton.onclick = () => {
             const name = nameInput.value.trim();
+            if (name.length < 4 || name.length > 10) {
+                addToastMessage("Nome deve ter entre 4 e 10 caracteres", "error");
+                return;
+            }
             if (name) {
                 ws.send(fMsgToSend("command", name, "me"));
             }
@@ -528,6 +580,10 @@
         // Criar uma sala
         createRoomButton.onclick = () => {
             const roomName = roomNameInput.value.trim();
+            if (roomName.length < 8 || roomName.length > 20) {
+                addToastMessage("Nome da sala deve ter entre 8 e 20 caracteres", "error");
+                return;
+            }
             if (roomName) {
                 ws.send(fMsgToSend("command", roomName, "create"));
             }
