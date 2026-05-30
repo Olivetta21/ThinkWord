@@ -43,7 +43,10 @@ const FMsg = {
       r: Object.fromEntries(
         Object.values(rooms).map((sala) => [
           sala.code,
-          [...sala.players].map((pid) => players[pid].name),
+          {
+            players: [...sala.players].map((pid) => players[pid].name),
+            started: sala.gameState !== 0,
+          },
         ])
       ),
     }),
@@ -61,13 +64,16 @@ const FMsg = {
   identity: (pname, pid, me = false) =>
     JSON.stringify({ t: me ? "id" : "pid", n: pname, p: pid }),
 
-  playersIDs: (plist) => {
+  playersIDs: (plist, ownerPid = null) => {
     console.log(`Players IDs: ${plist}`);
     return JSON.stringify({
       t: "pids",
       p: Object.fromEntries(plist.map((pid) => [pid, players[pid].name])),
+      o: ownerPid,
     });
   },
+
+  newOwner: (pid) => JSON.stringify({ t: "own", p: pid }),
 
   playerLeft: (pid) => JSON.stringify({ t: "pl", p: pid }),
 
@@ -155,8 +161,22 @@ class Room {
     this.code = code;
     this.rid = rid;
     this.gameState = 0;
+    this.stopRequested = false;
     this.dictionary = [];
     this.letters = "";
+  }
+
+  getOwnerPid() {
+    return this.players.values().next().value ?? null;
+  }
+
+  sendPlayersState() {
+    const plist = [...this.players];
+    const ownerPid = this.getOwnerPid();
+    const payload = FMsg.playersIDs(plist, ownerPid);
+    for (const pid of this.players) {
+      players[pid].ws.send(payload);
+    }
   }
 
   async echo(msg, senderPid = null) {
@@ -172,17 +192,38 @@ class Room {
     this.players.add(pid);
     p.room = this.rid;
     p.ws.send(FMsg.enteringRoom(this.code));
-    p.ws.send(FMsg.playersIDs([...this.players]));
+    this.sendPlayersState();
     this.echo(FMsg.identity(p.name, pid), pid);
   }
 
   removePlayer(pid) {
+    const previousOwnerPid = this.getOwnerPid();
+
     if (this.players.has(pid)) {
       players[pid].room = null;
     }
     this.players.delete(pid);
     this.echo(FMsg.playerLeft(pid));
+
+    const newOwnerPid = this.getOwnerPid();
+    if (newOwnerPid !== null && newOwnerPid !== previousOwnerPid) {
+      players[newOwnerPid].ws.send(FMsg.newOwner(newOwnerPid));
+    }
+
+    this.sendPlayersState();
+
+    if (this.players.size < 2) {
+      this.stopGame();
+    }
+
     return this.players.size === 0;
+  }
+
+  stopGame() {
+    this.stopRequested = true;
+    this.gameState = 0;
+    this.msgs.clear();
+    this.msgs.put([null, "__stop__", null]);
   }
 
   async setGameState(stateId, pidChosen = null) {
@@ -248,9 +289,13 @@ class Room {
     };
 
     while (!allPlayersPlayed()) {
+      if (this.stopRequested) break;
+
       await this.echo(FMsg.playerTyping(""));
       await this.setGameState(1); // Loading
       await this.loadDictionary();
+      if (this.stopRequested) break;
+
       wordsUsed.push(this.letters);
 
       await this.setGameState(2); // Selecting player
@@ -271,6 +316,8 @@ class Room {
 
       await this.setGameState(3, pid);
       await sleep(1000);
+      if (this.stopRequested) break;
+
       await this.echo(FMsg.gameLetters(this.letters));
 
       this.msgs.clear();
@@ -279,9 +326,15 @@ class Room {
       let acertou = false;
 
       while (Date.now() - inicio < 10000) {
+        if (this.stopRequested) break;
+
         try {
           const remaining = 10000 - (Date.now() - inicio);
           const [pid_, type, msg] = await this.msgs.get(Math.min(100, remaining));
+
+          if (this.stopRequested || type === "__stop__") {
+            break;
+          }
 
           if (pid_ === pid) {
             if (type === "t") {
@@ -314,6 +367,8 @@ class Room {
         }
       }
 
+      if (this.stopRequested) break;
+
       if (!acertou) {
         playerPlayed[pid].points -= 1;
         await this.echo(FMsg.playerWord("Tempo esgotado", 0));
@@ -322,6 +377,7 @@ class Room {
     }
 
     await this.setGameState(0);
+    this.stopRequested = false;
     this.letters = "";
     this.dictionary = [];
   }
@@ -460,6 +516,9 @@ async function hpMessages(pid, ws) {
         if (rooms[p.room].players.size < 2) { ws.send(FMsg.error("NEP")); return; }
         if (rooms[p.room].gameState !== 0) { ws.send(FMsg.error("GAS")); return; }
         rooms[p.room].startGame().catch(console.error);
+      } else if (g.startsWith("stop")) {
+        if (await rooms[p.room].getLefterPlayer() !== pid) { ws.send(FMsg.error("PNO")); return; }
+        rooms[p.room].stopGame();
       } else if (g.startsWith("t:")) {
         rooms[p.room].msgs.put([pid, "t", g.slice(2)]);
       } else if (g.startsWith("m:")) {

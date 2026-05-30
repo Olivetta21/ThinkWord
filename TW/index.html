@@ -457,6 +457,7 @@
 
         let gameState_value = 0;
         let currentPlayingPid = null;
+        let currentOwnerPid = null;
         let me = { id: -1, name: "Player" };
         let room_players = {
             // "player_id": { "name": "Player Name", "points": 0 }
@@ -469,6 +470,7 @@
         function wsOnClose() {
             console.log("WS disconnected");
             gameState_value = 0;
+            currentOwnerPid = null;
             setTimeout(setupWS, 3000);
         }
         function wsOnMesssage(event) {
@@ -514,13 +516,21 @@
                     addToRoomChat(`O jogador ${msg.n} entrou na sala`, -1);
                     break;
                 case "pids": // Player IDs
-                    modifyRoomPlayerList(msg.p, false);
+                    modifyRoomPlayerList(msg.p, false, msg.o);
                     break;
                 case "pl": // Player left
                     const playerName = room_players[msg.p].name;
                     addToRoomChat(`O jogador ${playerName} saiu da sala`, -1);
                     player = { [msg.p]: playerName };
                     modifyRoomPlayerList(player, true);
+                    break;
+                case "own": // New room owner
+                    if (msg.p == me.id && String(currentOwnerPid) !== String(me.id)) {
+                        addToastMessage("Você agora é o dono da sala!", "info");
+                    }
+                    currentOwnerPid = msg.p;
+                    refreshRoomPlayers();
+                    updateStartButtonState();
                     break;
 
             }
@@ -640,11 +650,13 @@
             changeTela();
             // Initialize room with game-off state
             document.getElementById("tela-room").classList.add("game-off");
+            updateStartButtonState();
         }
 
         function leavingRoom() {
             chat.innerHTML = "";
             room_players = {};
+            currentOwnerPid = null;
             roomPlayers.innerHTML = "";
             playerTyping.textContent = "...";
             updateGameState(0);
@@ -654,7 +666,13 @@
             const roomListContent = document.getElementById("room-list-content");
             roomListContent.innerHTML = "";
 
-            for (const [roomCode, players] of Object.entries(rooms)) {
+            for (const [roomCode, roomInfoRaw] of Object.entries(rooms)) {
+                const roomInfoData = Array.isArray(roomInfoRaw)
+                    ? { players: roomInfoRaw, started: false }
+                    : roomInfoRaw;
+                const players = roomInfoData.players || [];
+                const started = Boolean(roomInfoData.started);
+
                 const room = document.createElement("div");
                 room.classList.add("rl-room");
 
@@ -672,12 +690,18 @@
                 }
 
                 roomInfo.appendChild(rcode);
+
+                const roomStatus = document.createElement("p");
+                roomStatus.textContent = started ? "Partida em andamento" : "Aguardando jogadores";
+                roomInfo.appendChild(roomStatus);
+
                 roomInfo.appendChild(playerDiv);
                 room.appendChild(roomInfo);
 
                 const joinButton = document.createElement("button");
-                joinButton.textContent = "Entrar";
+                joinButton.textContent = started ? "Em jogo" : "Entrar";
                 joinButton.classList.add("primary");
+                joinButton.disabled = started;
                 joinButton.onclick = () => {
                     ws.send(fMsgToSend("command", roomCode, "join"));
                 };
@@ -706,6 +730,9 @@
                 if (pid == me.id) {
                     p.classList.add("me");
                 }
+                if (pid == currentOwnerPid) {
+                    p.textContent += " (dono)";
+                }
                 if (pid == playing_pid) {
                     p.classList.add("playing");
                 }
@@ -713,7 +740,13 @@
             });
         }
 
-        function modifyRoomPlayerList(pids, remover = false) {
+        function updateStartButtonState() {
+            const isOwner = currentOwnerPid !== null && String(currentOwnerPid) === String(me.id);
+            startButton.style.display = isOwner ? "inline-block" : "none";
+            startButton.textContent = gameState_value === 0 ? "Iniciar Jogo" : "Parar Jogo";
+        }
+
+        function modifyRoomPlayerList(pids, remover = false, ownerPid = null) {
             if (remover) {
                 Object.entries(pids).forEach(([pid, name]) => {
                     delete room_players[pid];
@@ -728,7 +761,16 @@
                 });
             }
 
+            if (ownerPid !== null) {
+                const previousOwnerPid = currentOwnerPid;
+                currentOwnerPid = ownerPid;
+                if (String(previousOwnerPid) !== String(currentOwnerPid) && String(currentOwnerPid) === String(me.id)) {
+                    addToastMessage("Você agora é o dono da sala!", "info");
+                }
+            }
+
             refreshRoomPlayers();
+            updateStartButtonState();
         }
 
         function updatePlayerPoints(pid, points) {
@@ -764,6 +806,7 @@
             }
 
             gameState_value = state;
+            updateStartButtonState();
 
             switch (state) {
                 case 0:
@@ -838,7 +881,11 @@
 
         // Iniciar o jogo
         startButton.onclick = () => {
-            ws.send(fMsgToSend("gamemsg", "start"));
+            if (gameState_value === 0) {
+                ws.send(fMsgToSend("gamemsg", "start"));
+            } else {
+                ws.send(fMsgToSend("gamemsg", "stop"));
+            }
         };
 
 
