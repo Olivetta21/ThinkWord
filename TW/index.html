@@ -2,72 +2,292 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ThinkWord</title>
-    <link rel="stylesheet" href="telamain.css">
-    <link rel="stylesheet" href="telaroom.css">
     <style>
+        :root {
+            --bg: #0f172a;
+            --bg-elev: #1e293b;
+            --card: #1e293b;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --border: #334155;
+            --primary: #38bdf8; /* bright sky blue */
+            --primary-600: #0284c7;
+            --primary-100: #0c4a6e;
+            --success: #22c55e;
+            --error: #ef4444;
+            --info: #60a5fa;
+            --shadow: 0 8px 30px rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0, 0, 0, 0.2);
+            --radius: 14px;
+        }
+
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
+            padding: 0;
+            margin: 0;
+        }
+
+        body {
+            height: 100vh;
+            width: 100vw;
+            background-color: var(--bg-elev);
+        }
+
+        #toast-messages-window {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        .toast {
+            padding: 10px 20px;
+            border-radius: 5px;
+            color: var(--text);
+            margin-bottom: 10px;
+            min-width: 200px;
+            background-color: var(--muted);
+        }
+        .toast.success {
+            background-color: var(--success);
+        }
+        .toast.error {
+            background-color: var(--error);
+        }
+        .toast.info {
+            background-color: var(--info);
+        }
+
+
+        button, input {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+        }
+        button {
+            background-color: var(--muted);
         }
 
         .tela {
             display: none;
-            max-width: 400px;
+            height: 100%;
+            width: 100%;
+            max-width: 600px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--bg);
+            color: var(--text);
         }
         .tela.ativa {
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            display: block;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-
-        #toast-messages-window.hidden {
-            display: none;
-        }
-        #toast-messages-window {
-            pointer-events: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        #tela-main {
             display: flex;
-            justify-content: right;
-            z-index: 1000;
-        }
-        #toast-messages {
-            width: 300px;
-            display: flex;
-            flex-direction: column-reverse;
-            justify-content: flex-end;
+            width: 80%;
+            height: 80%;
+            max-width: 500px;
+            max-height: 800px;
+            flex-direction: column;
+            padding: 10px;
             gap: 10px;
-            padding: 20px;
-            
-            border-radius: 5px;
+            border-radius: 20px;
+            box-shadow: 4px 4px 20px 12px #ffffff17;
         }
-        .toast {
-            background-color: black;
+
+        #name-input-block, #room-list-block {
+            background-color: var(--bg-elev);
             padding: 10px;
             border-radius: 5px;
-            color: white;
+        }
+
+        #name-input-block {
+
+        }
+
+        #room-list-block {
+            flex: 1;
+            height: 0;
+        }
+
+        #room-list-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #room-list-header {
+        }
+
+        #room-list-content {
+            flex: 1;
+            overflow: auto;
+            scrollbar-width: thin;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rl-room {
+            background-color: var(--bg);
+            padding: 5px;
+            border-radius: 5px;
+        }
+
+        .rl-room-info > div {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            width: 100%;
+            overflow: auto;
+            scrollbar-width: thin;
+        }
+
+
+
+        /* GAME ROOM */
+
+        #tela-room {
+            height: 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            gap: 4px;
+            box-shadow: 4px 4px 20px 12px #ffffff17;
+        }
+
+        #room-header-content {
+            display: flex;
+            justify-content: space-between;
+            
+        }
+        #room-ins-content {
+            height: 0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        #room-ins-footer {
+            
+        }
+
+
+        #room-ins-gamestate {
+            
+        }
+
+        #room-ins-game {
+            height: 0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #room-ins-playertyping {
+            background-color: var(--border);
+            text-align: center;
             font-weight: bold;
         }
-        .toast.success {
-            background-color: rgba(173, 221, 173, 0.5);
-            color: rgb(0, 61, 0);
+
+        #room-ins-players, #room-ins-chat {
+            border-radius: 5px;
+            padding: 10px;
+            background-color: var(--bg-elev);
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            scrollbar-width: thin;
         }
-        .toast.error {
-            background-color: rgba(255, 173, 173, 0.5);
-            color: rgb(61, 0, 0);
+
+        #room-ins-players {
+            text-wrap: nowrap;
+            border-bottom: 1px solid white;
+            overflow-x: auto;
         }
-        .toast.info {
-            background-color: rgba(173, 173, 255, 0.5);
-            color: rgb(0, 0, 61);
+
+        #room-ins-players > .me {
+            box-shadow: 0px 0px 20px 0px #ffffffd6;
         }
+        #room-ins-players > .playing {
+            background-color: var(--text);
+            padding: 2px;
+            border-radius: 5px;
+            color: var(--bg);
+        }
+
+        span.username {
+            font-style: italic;
+        }
+
+        #room-ins-chat {
+            height: 0;
+            flex: 1;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+
+        #room-ins-chat p {
+            padding: 5px;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+        }
+        #room-ins-chat > .right > p {
+            background-color: var(--primary);
+        }
+        #room-ins-chat > .other > p {
+            background-color: var(--info);
+        }
+        #room-ins-chat > .center > p {
+            background-color: var(--bg);
+        }
+        #room-ins-chat > .center > .pwl {
+            background-color: var(--error);
+        }
+        #room-ins-chat > .center > .pww {
+            background-color: var(--success);
+        }
+
+
+        #room-ins-chat > div {
+            max-width: 80%;
+        }
+        #room-ins-chat > .right {
+            align-self: flex-end;
+        }
+        #room-ins-chat > .other {
+            align-self: flex-start;
+        }
+        #room-ins-chat > .center {
+            align-self: center;
+        }
+
+        #room-ins-footer {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #room-ins-input-cont {
+            display: flex;
+            justify-content: space-between;
+            flex: 1;
+            align-items: center;
+        }
+
+        #room-ins-input {
+            flex: 1;
+        }
+
+
+        
+
     </style>
 </head>
 <body>
@@ -93,7 +313,7 @@
                     <p>Nome</p>
                     <div>
                         <input id="name-input" type="text" placeholder="Seu nome..." />
-                        <button id="name-submit"> OK </button>
+                        <button id="name-submit" class="primary"> OK </button>
                     </div>
                 </div>
             </div>
@@ -101,7 +321,7 @@
                 <div id="room-list-container">
                     <div id="room-list-header">
                         <input type="text" id="room-name-input" placeholder="Nome da Sala" />
-                        <button id="join-room">Entrar</button>
+                        <button id="join-room" class="primary">Entrar</button>
                         <button id="create-room">Criar</button>
                         <button id="reload-rooms">Recarregar</button>
                     </div>
@@ -125,14 +345,17 @@
     <div id="tela-room-page" class="tela">
         <div id="tela-room">
             <div id="room-ins-header">
-                <p id="room-name">Nome da sala</p>
+                <div class="room-header-content">
+                    <p id="room-name">Nome da sala</p>
+                    <span id="game-status" class="game-element">Jogo Ativo</span>
+                </div>
             </div>
             <div id="room-ins-content">
                 <div id="room-ins-gamestate">
                     <div id="room-ins-gs">
                         
                     </div>
-                    <div id="room-ins-playertyping">
+                    <div id="room-ins-playertyping" class="game-element">
 
                     </div>
                 </div>
@@ -163,12 +386,13 @@
             </div>
             <div id="room-ins-footer">
                 <div id="room-ins-input-cont">
+                    <p id="room-ins-gameletters" class="game-element"></p>
                     <input type="text" id="room-ins-input" placeholder="Digite uma mensagem..." />
-                    <button id="room-ins-send">Enviar</button>
+                    <button id="room-ins-send" class="primary">Enviar</button>
                 </div>
                 <div id="room-ins-buttons">
                     <button id="room-ins-leaveroom"> Sair </button>
-                    <button id="room-ins-startgame"> Iniciar Jogo </button>
+                    <button id="room-ins-startgame" class="primary"> Iniciar Jogo </button>
                 </div>
             </div>
         </div>
@@ -188,6 +412,7 @@
         const nameInput = document.getElementById("name-input");
         const setNameButton = document.getElementById("name-submit");
 
+        const gameLetters = document.getElementById("room-ins-gameletters");
         const messageInput = document.getElementById("room-ins-input");
         const sendButton = document.getElementById("room-ins-send");        
         
@@ -231,6 +456,7 @@
 
 
         let gameState_value = 0;
+        let currentPlayingPid = null;
         let me = { id: -1, name: "Player" };
         let room_players = {
             // "player_id": { "name": "Player Name", "points": 0 }
@@ -300,7 +526,9 @@
             }
         }
         function setupWS() {
-            ws = new WebSocket("ws://localhost:15765");
+            // Define the WebSocket URL - can be changed for different environments
+            const wsUrl = "ws://10.8.6.2:8085";
+            ws = new WebSocket(wsUrl);
             ws.onopen = wsOnOpen;
             ws.onclose = wsOnClose;
             ws.onmessage = wsOnMesssage;
@@ -325,24 +553,48 @@
             addToastMessage(`Olá ${me.name} !`, "success");
         }
 
+        // User color mapping
+        const userColors = {};
+        let colorCounter = 0;
+        
+        function getUserColor(userId) {
+            if (!userColors[userId]) {
+                // Assign color and cycle through available colors (0-5)
+                userColors[userId] = colorCounter % 6;
+                colorCounter++;
+            }
+            return userColors[userId];
+        }
+
         function addToRoomChat(msg, from) {
             const msgElement = document.createElement("p");
-
             const div = document.createElement("div");
 
             if (from == -1) {
                 div.classList.add("center");
                 msgElement.classList.add("srv");
+                msgElement.textContent = msg;
             } else if (from >= 0) {
+                div.classList.add("other");
                 let playerName = room_players[from].name;
-                msg = `${playerName}: ${msg}`;
                 msgElement.classList.add("other");
+                
+                // Add user-specific color class
+                msgElement.classList.add(`user-color-${getUserColor(from)}`);
+                
+                // Add username with span for styling
+                const usernameSpan = document.createElement("span");
+                usernameSpan.className = "username";
+                usernameSpan.textContent = playerName;
+                msgElement.appendChild(usernameSpan);
+                
+                // Add message text
+                msgElement.appendChild(document.createTextNode(msg));
             } else {
                 div.classList.add("center");
                 msgElement.classList.add("other");
+                msgElement.textContent = msg;
             }
-
-            msgElement.textContent = msg;
 
             div.appendChild(msgElement);
             chat.appendChild(div);
@@ -351,7 +603,14 @@
 
         function showResultInChat(msg, result) {            
             const msgElement = document.createElement("p");
-            msgElement.textContent = msg;
+            const usernameSpan = document.createElement("span");
+            usernameSpan.className = "username";
+            usernameSpan.textContent = currentPlayingPid !== null && room_players[currentPlayingPid]
+                ? room_players[currentPlayingPid].name
+                : me.name;
+            msgElement.appendChild(usernameSpan);
+
+            msgElement.appendChild(document.createTextNode(msg));
 
             const div = document.createElement("div");
             div.classList.add("center");
@@ -379,6 +638,8 @@
                 leavingRoom();
             }
             changeTela();
+            // Initialize room with game-off state
+            document.getElementById("tela-room").classList.add("game-off");
         }
 
         function leavingRoom() {
@@ -416,6 +677,7 @@
 
                 const joinButton = document.createElement("button");
                 joinButton.textContent = "Entrar";
+                joinButton.classList.add("primary");
                 joinButton.onclick = () => {
                     ws.send(fMsgToSend("command", roomCode, "join"));
                 };
@@ -426,6 +688,7 @@
         }
 
         function showGameLetters(letters) {
+            gameLetters.textContent = letters;
             addToRoomChat(`As letras escolhidas são: ${letters}`, -1);
         }
 
@@ -484,6 +747,9 @@
         }
 
         function updateGameState(state, pid_chosen = null) {
+            const roomElement = document.getElementById("tela-room");
+            currentPlayingPid = state === 3 ? pid_chosen : null;
+            
             if (gameState_value == 0 && state == 1) {                
                 // Resetar as pontuações dos jogadores
                 console.log("players: ", room_players);
@@ -491,19 +757,35 @@
                     player.points = 0;
                 });
                 refreshRoomPlayers();
+                addToRoomChat("Iniciando jogo...", -1);
+                
+                // Show game UI when game starts
+                roomElement.classList.remove("game-off");
             }
 
             gameState_value = state;
 
-
             switch (state) {
                 case 0:
-                    gameState.textContent = "esperando...";
-                    playerTyping.textContent = "...";
+                    // Hide game elements when game is inactive
+                    roomElement.classList.add("game-off");
+                    
+                    gameState.textContent = "Chat da Sala";
+                    playerTyping.textContent = "";                    
+                    gameLetters.innerHTML = "";
                     refreshRoomPlayers();
+                    
+                    // Update input placeholder for chat mode
+                    messageInput.placeholder = "Digite uma mensagem...";
                     break;
                 case 1:
+                    // Show game elements
+                    roomElement.classList.remove("game-off");
+                    
                     gameState.textContent = "Iniciando jogo...";
+                    
+                    // Update input placeholder for game mode
+                    messageInput.placeholder = "Digite uma palavra...";
                     break;
                 case 2:
                     gameState.textContent = "Escolhendo jogador...";
@@ -523,7 +805,6 @@
                     }
                     break;
             }
-
         }
 
         function fMsgToSend(type, msg, comm) {
@@ -619,8 +900,16 @@
             } else {
                 ws.send(fMsgToSend("roomchat", msg, "c"));            
                 const msgElement = document.createElement("p");
-                msgElement.textContent = msg;
                 msgElement.classList.add("me");
+                
+                // Add my username with span for styling
+                const usernameSpan = document.createElement("span");
+                usernameSpan.className = "username";
+                usernameSpan.textContent = me.name;
+                msgElement.appendChild(usernameSpan);
+                
+                // Add message text
+                msgElement.appendChild(document.createTextNode(msg));
 
                 const div = document.createElement("div");
                 div.classList.add("right");

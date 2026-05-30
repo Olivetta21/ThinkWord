@@ -1,1 +1,3 @@
 private_arqs
+.env
+node_modules
