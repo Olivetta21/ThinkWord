@@ -29,7 +29,7 @@
         }
 
         body {
-            height: 100vh;
+            height: 100%;
             width: 100vw;
             background-color: var(--bg-elev);
         }
@@ -105,10 +105,6 @@
             border-radius: 5px;
         }
 
-        #name-input-block {
-
-        }
-
         #room-list-block {
             flex: 1;
             height: 0;
@@ -118,9 +114,6 @@
             height: 100%;
             display: flex;
             flex-direction: column;
-        }
-
-        #room-list-header {
         }
 
         #room-list-content {
@@ -147,6 +140,10 @@
             scrollbar-width: thin;
         }
 
+        .rl-room-info>p:nth-child(1) {
+            background-color: var(--primary-100);
+        }
+
 
 
         /* GAME ROOM */
@@ -164,7 +161,6 @@
         #room-header-content {
             display: flex;
             justify-content: space-between;
-            
         }
         #room-ins-content {
             height: 0;
@@ -172,15 +168,6 @@
             display: flex;
             flex-direction: column;
         }
-        #room-ins-footer {
-            
-        }
-
-
-        #room-ins-gamestate {
-            
-        }
-
         #room-ins-game {
             height: 0;
             flex: 1;
@@ -192,6 +179,7 @@
             background-color: var(--border);
             text-align: center;
             font-weight: bold;
+            display: none;
         }
 
         #room-ins-players, #room-ins-chat {
@@ -210,14 +198,21 @@
             overflow-x: auto;
         }
 
+        #room-ins-players > p {
+            border-radius: 50%;
+            padding: 1%;
+        }
+
         #room-ins-players > .me {
-            box-shadow: 0px 0px 20px 0px #ffffffd6;
+            box-shadow: 0px 0px 20px 0px #ffffff;
         }
         #room-ins-players > .playing {
             background-color: var(--text);
-            padding: 2px;
-            border-radius: 5px;
             color: var(--bg);
+        }
+
+        #room-ins-players > .leader {
+            border-bottom: 4px solid var(--success);
         }
 
         span.username {
@@ -229,6 +224,7 @@
             flex: 1;
             flex-direction: column;
             overflow-y: auto;
+            text-shadow: 0 0 4px black;
         }
 
 
@@ -252,6 +248,24 @@
         }
         #room-ins-chat > .center > .pww {
             background-color: var(--success);
+        }
+
+        #room-ins-chat > .center > .srv {
+            white-space: pre-line;
+        }
+
+        #room-ins-currentturn {
+            text-align: center;
+            font-weight: 700;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background-color: var(--primary-100);
+            color: var(--text);
+        }
+
+        #room-ins-currentturn.me-turn {
+            background-color: var(--success);
+            color: var(--bg);
         }
 
 
@@ -278,6 +292,7 @@
             display: flex;
             justify-content: space-between;
             flex: 1;
+            gap: 5px;
             align-items: center;
         }
 
@@ -345,7 +360,7 @@
     <div id="tela-room-page" class="tela">
         <div id="tela-room">
             <div id="room-ins-header">
-                <div class="room-header-content">
+                <div id="room-header-content">
                     <p id="room-name">Nome da sala</p>
                     <span id="game-status" class="game-element">Jogo Ativo</span>
                 </div>
@@ -385,6 +400,7 @@
                 </div>
             </div>
             <div id="room-ins-footer">
+                <div id="room-ins-currentturn"></div>
                 <div id="room-ins-input-cont">
                     <p id="room-ins-gameletters" class="game-element"></p>
                     <input type="text" id="room-ins-input" placeholder="Digite uma mensagem..." />
@@ -457,7 +473,9 @@
 
         let gameState_value = 0;
         let currentPlayingPid = null;
+        let currentPlayerTyping = "";
         let currentOwnerPid = null;
+        let suppressGameEndSummary = false;
         let me = { id: -1, name: "Player" };
         let room_players = {
             // "player_id": { "name": "Player Name", "points": 0 }
@@ -537,7 +555,7 @@
         }
         function setupWS() {
             // Define the WebSocket URL - can be changed for different environments
-            const wsUrl = "ws://10.8.6.2:8085";
+            const wsUrl = "/ws/";
             ws = new WebSocket(wsUrl);
             ws.onopen = wsOnOpen;
             ws.onclose = wsOnClose;
@@ -643,7 +661,7 @@
         }
 
         function enterRoom(roomCode) {
-            roomNameP.textContent = roomCode;
+            roomNameP.textContent = "Sala (" + roomCode + ")";
             if (roomCode == -1) {
                 leavingRoom();
             }
@@ -654,12 +672,14 @@
         }
 
         function leavingRoom() {
+            suppressGameEndSummary = true;
             chat.innerHTML = "";
             room_players = {};
             currentOwnerPid = null;
             roomPlayers.innerHTML = "";
             playerTyping.textContent = "...";
             updateGameState(0);
+            suppressGameEndSummary = false;
         }
 
         function showRoomList(rooms) {
@@ -718,10 +738,20 @@
 
         function refreshRoomPlayers(playing_pid = -1) {            
             roomPlayers.innerHTML = "";
+            const topPoints = Object.values(room_players).reduce((maxPoints, player) => {
+                const points = player.points || 0;
+                return points > maxPoints ? points : maxPoints;
+            }, 0);
+
             Object.entries(room_players).forEach(([pid, player]) => {
                 const p = document.createElement("p");
                 let name = player.name;
                 let points = player.points || 0;
+
+                if (pid == me.id) {
+                    name = "Você";
+                    p.title = player.name;
+                }
 
                 if (name.length > 5) {
                     name = name.substring(0, 5) + "...";
@@ -733,11 +763,57 @@
                 if (pid == currentOwnerPid) {
                     p.textContent += " (dono)";
                 }
+                if (topPoints > 0 && points === topPoints) {
+                    p.classList.add("leader");
+                }
                 if (pid == playing_pid) {
                     p.classList.add("playing");
                 }
                 roomPlayers.appendChild(p);
             });
+
+            updateCurrentTurnIndicator();
+        }
+
+        function updateCurrentTurnIndicator() {
+            const currentTurn = document.getElementById("room-ins-currentturn");
+
+            if (!currentTurn) return;
+
+            if (!currentPlayingPid || !room_players[currentPlayingPid]) {
+                currentTurn.textContent = "";
+                currentTurn.classList.remove("me-turn");
+                return;
+            }
+
+            const isMe = String(currentPlayingPid) === String(me.id);
+            const playerName = isMe ? "Você" : room_players[currentPlayingPid].name;
+            const typingPart = currentPlayerTyping ? ` - ${currentPlayerTyping}` : "";
+            currentTurn.textContent = `Jogador da vez: ${playerName}${typingPart}`;
+            currentTurn.classList.toggle("me-turn", isMe);
+        }
+
+        function showFinalRankingInChat() {
+            const ranking = Object.entries(room_players)
+                .map(([pid, player]) => ({
+                    pid,
+                    name: player.name,
+                    points: player.points || 0,
+                }))
+                .sort((left, right) => {
+                    if (right.points !== left.points) {
+                        return right.points - left.points;
+                    }
+                    return left.name.localeCompare(right.name);
+                });
+
+            if (ranking.length === 0) return;
+
+            const lines = ranking.map((player, index) => {
+                return `${index + 1}. ${player.name} - ${player.points} pontos`;
+            });
+
+            addToRoomChat(`Top final:\n${lines.join("\n")}`, -1);
         }
 
         function updateStartButtonState() {
@@ -781,16 +857,19 @@
         }
 
         function updatePlayerTyping(typing) {
-            if (typing.length > 0) {
-                playerTyping.textContent = typing;
-            } else {
-                playerTyping.textContent = "...";
-            }
+            currentPlayerTyping = typing.length > 0 ? typing : "";
+            playerTyping.textContent = currentPlayerTyping;
+            updateCurrentTurnIndicator();
         }
 
         function updateGameState(state, pid_chosen = null) {
             const roomElement = document.getElementById("tela-room");
+            const previousGameState = gameState_value;
             currentPlayingPid = state === 3 ? pid_chosen : null;
+            if (state !== 3) {
+                currentPlayerTyping = "";
+            }
+            updateCurrentTurnIndicator();
             
             if (gameState_value == 0 && state == 1) {                
                 // Resetar as pontuações dos jogadores
@@ -807,6 +886,10 @@
 
             gameState_value = state;
             updateStartButtonState();
+
+            if (state === 0 && previousGameState !== 0 && !suppressGameEndSummary) {
+                showFinalRankingInChat();
+            }
 
             switch (state) {
                 case 0:
@@ -846,6 +929,7 @@
                         }
                         refreshRoomPlayers(pid_chosen);
                     }
+                    updateCurrentTurnIndicator();
                     break;
             }
         }

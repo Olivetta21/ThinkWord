@@ -22,6 +22,7 @@ const ERRORTABLE = {
   RNL: "Nome da sala deve ter entre 8 e 20 caracteres.",
   PNO: "Você não é o dono da sala.",
   GAS: "Partida já em andamento.",
+  NAU: "Nome já utilizado"
 };
 
 // ─────────────────────────────────────────────
@@ -413,6 +414,21 @@ function remPlayerFromRoom(pid, rid = null) {
   }
 }
 
+function getClientIp(request) {
+  const forwardedFor = request.headers["x-forwarded-for"];
+  if (typeof forwardedFor === "string" && forwardedFor.length > 0) {
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  const realIp = request.headers["x-real-ip"];
+  if (typeof realIp === "string" && realIp.length > 0) {
+    return realIp.trim();
+  }
+
+  const remoteAddress = request.socket?.remoteAddress ?? "unknown";
+  return remoteAddress.startsWith("::ffff:") ? remoteAddress.slice(7) : remoteAddress;
+}
+
 // ─────────────────────────────────────────────
 // State
 // ─────────────────────────────────────────────
@@ -437,11 +453,10 @@ async function hpMessages(pid, ws) {
       }
       
       else if (c.startsWith("me:")) {
-        p.name = c.slice(3);
-        if (p.name.length < 4 || p.name.length > 10) {
-          ws.send(FMsg.error("PNL"));
-          return;
-        }
+        const name = c.slice(3);
+        if (name.length < 4 || name.length > 10) { ws.send(FMsg.error("PNL")); return; }
+        if (Object.values(players).some((p) => p.name === name)) { ws.send(FMsg.error("NAU")); return; }
+        p.name = name;
         ws.send(FMsg.identity(p.name, pid, true));
       }
       
@@ -535,10 +550,11 @@ async function hpMessages(pid, ws) {
 // ─────────────────────────────────────────────
 const wss = new WebSocketServer({ host: "0.0.0.0", port: 8085 });
 
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, request) => {
+  const clientIp = getClientIp(request);
   const pid = Player.nextSerial();
   players[pid] = new Player(ws, pid);
-  console.log(`Player ${pid} connected`);
+  console.log(`Player ${pid} connected from ${clientIp}`);
 
   hpMessages(pid, ws).catch(console.error);
 
