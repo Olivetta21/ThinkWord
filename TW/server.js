@@ -260,7 +260,8 @@ class Room {
       const dictRes = await pool.query(
         `SELECT w FROM w_ptbr WHERE w LIKE '%${this.letters}%'`
       );
-      tmpDictionary = dictRes.rows.map((r) => r.w);
+      this.letters = normalizar(this.letters);
+      tmpDictionary = dictRes.rows.map((r) => normalizar(r.w));
     }
 
     this.dictionary = tmpDictionary;
@@ -341,7 +342,7 @@ class Room {
             if (type === "t") {
               await this.echo(FMsg.playerTyping(msg), pid);
             } else if (type === "m") {
-              const normalized = msg.trim().toUpperCase();
+              const normalized = normalizar(msg);
               if (
                 this.dictionary.includes(normalized) &&
                 !wordsUsed.includes(normalized)
@@ -389,6 +390,16 @@ class Room {
 // ─────────────────────────────────────────────
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizar(texto) {
+    return texto
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // remove acentos
+        .replace(/[^a-z0-9\s]/g, '')     // remove caracteres especiais
+        .replace(/\s+/g, ' ')            // normaliza espaços múltiplos
+        .trim();
 }
 
 function remPlayerFromRoom(pid, rid = null) {
@@ -509,6 +520,7 @@ async function hpMessages(pid, ws) {
       if (!rooms[p.room]) { ws.send(FMsg.error("RNF")); return; }
 
       if (r.startsWith("c:")) {
+        if (r.length > 50) return;
         const msg = r.slice(2);
         if (!msg) return;
         await rooms[p.room].echo(FMsg.rc(msg, pid), pid);
@@ -535,8 +547,10 @@ async function hpMessages(pid, ws) {
         if (await rooms[p.room].getLefterPlayer() !== pid) { ws.send(FMsg.error("PNO")); return; }
         rooms[p.room].stopGame();
       } else if (g.startsWith("t:")) {
+        if (g.length > 50) return;
         rooms[p.room].msgs.put([pid, "t", g.slice(2)]);
       } else if (g.startsWith("m:")) {
+        if (g.length > 50) return;
         rooms[p.room].msgs.put([pid, "m", g.slice(2)]);
       } else if (g.startsWith("gs")) {
         ws.send(FMsg.gameState(rooms[p.room].gameState));
